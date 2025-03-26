@@ -68,3 +68,94 @@
     border-color: black;
   }
 }
+
+
+.text-formatting h1 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 1rem 0;
+}
+
+.text-formatting h2 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin: 0.75rem 0;
+}
+
+.text-formatting h3 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin: 0.5rem 0;
+}
+
+.text-formatting ul {
+  list-style-type: disc;
+  margin-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.text-formatting ol {
+  list-style-type: decimal;
+  margin-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.text-formatting li {
+  margin-bottom: 0.25rem;
+}
+
+.text-formatting p {
+  margin-bottom: 0.75rem;
+}
+
+.text-formatting strong {
+  font-weight: bold;
+}
+
+.text-formatting em {
+  font-style: italic;
+}
+
+/* Add new styles for tables and links */
+.text-formatting table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.text-formatting th,
+.text-formatting td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.text-formatting th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+.text-formatting tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.text-formatting a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.text-formatting a:hover {
+  text-decoration: underline;
+}
+
+/* For dark theme messages (user messages) */
+.bg-blue-500 .text-formatting a {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
+.text-formatting .overflow-x-auto {
+  overflow-x: auto;
+}
