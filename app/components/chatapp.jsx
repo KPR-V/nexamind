@@ -22,7 +22,7 @@ const ChatApp = () => {
 
   const fetchModels = async () => {
     try {
-      const response = await axios.get("http://localhost:3000/api/lilypad" || "/api/lilypad");
+      const response = await axios.get( "/api/lilypad");
       const data = response.data.data.models;
       setModels(data);
       if (data.length > 0 && !selectedModel) {
@@ -81,7 +81,7 @@ const ChatApp = () => {
     try {
     
       const response = await axios.post(
-        "http://localhost:3000/api/chatlilypad" || "/api/chatlilypad",
+        "/api/chatlilypad",
         {
           model: selectedModel,
           message: currentMessage,
