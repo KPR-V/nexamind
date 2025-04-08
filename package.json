@@ -9,13 +9,21 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@multiformats/multiaddr": "^12.4.0",
+    "@rainbow-me/rainbowkit": "^2.2.4",
+    "@tailwindcss/forms": "^0.5.10",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
+    "@web3-storage/w3up-client": "^17.2.0",
     "axios": "^1.8.4",
+    "buffer": "^6.0.3",
     "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "framer-motion": "^12.6.3",
     "next": "15.2.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "wagmi": "^2.14.16"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

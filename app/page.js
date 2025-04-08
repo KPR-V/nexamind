@@ -1,9 +1,12 @@
-import ChatApp from "./components/chatapp";
-
+"use client";
+import dynamic from "next/dynamic";
+const ChatApp = dynamic(() => import("./components/chatapp"), {
+  ssr: false,
+});
 export default function page() {
   return (
-    <div>
+    <main className="bg-gray-50 dark:bg-gray-900 min-h-screen">
       <ChatApp />
-    </div>
+    </main>
   );
 }

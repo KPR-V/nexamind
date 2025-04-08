@@ -1,12 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import axios from "axios";
 import dotenv from "dotenv";
+import { chatTools } from "../../../utils/tools";
+import { searchWeb } from "../../../utils/toolFunctions";
 dotenv.config();
+
+const toolSupportedModels = [
+  "llama3.1:8b",
+  "qwen2.5:7b",
+  "qwen2.5-coder:7b",
+  "phi4-mini:3.8b",
+  "mistral:7b",
+];
 
 export async function POST(request) {
   console.log("📥 Received request to chatlilypad endpoint");
   try {
-    const { model, message } = await request.json();
+    const {
+      model,
+      message,
+      conversation = [],
+      enableTools = true,
+    } = await request.json();
     console.log(`📋 Processing request with model: ${model}`);
     console.log(
       `💬 User message: "${message.substring(0, 50)}${
@@ -14,251 +29,114 @@ export async function POST(request) {
       }"`
     );
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        let isControllerClosed = false;
-        const encoder = new TextEncoder();
-        let hasSentContent = false;
-        let totalContentLength = 0;
-        let receivedContentLength = 0;
-        let buffer = "";
-        let allReceivedContent = "";
+    const modelSupportsTools = toolSupportedModels.includes(model);
+    const useTools = modelSupportsTools && enableTools;
 
-        // Helper function: sends text in chunks with detailed logging and conditional delays
-        async function sendChunkedText(text, chunkSize = 16, delayMs = 0) {
-          if (!text) return;
-          for (let i = 0; i < text.length; i += chunkSize) {
-            if (isControllerClosed) {
-              console.log("⚠️ Controller closed, stopping chunk transmission");
-              return;
-            }
-            const part = text.substring(i, i + chunkSize);
-            try {
-              controller.enqueue(encoder.encode(part));
-              console.log(
-                `🔤 Sent chunk (${part.length} chars): ${JSON.stringify(part)}`
-              );
-              totalContentLength += part.length;
-              hasSentContent = true;
-              if (part.includes("\n")) {
-                console.log(
-                  `📃 Chunk contains newlines: ${JSON.stringify(part)}`
-                );
-              }
-              if (i + chunkSize < text.length && delayMs > 0) {
-                console.log(`⏱️ Delaying next chunk for ${delayMs}ms`);
-                await new Promise((res) => setTimeout(res, delayMs));
-              }
-            } catch (err) {
-              console.error("❌ Error enqueueing chunk:", err.message);
-              isControllerClosed = true;
-              return;
-            }
-          }
-        }
+    let messages = [];
 
-        try {
-          console.log("🌐 Sending request to Lilypad API");
-          const response = await axios.post(
-            "https://anura-testnet.lilypad.tech/api/v1/chat/completions",
-            {
-              model,
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are a helpful assistant. You will answer the user's queries in detail and in an explanatory manner.",
-                },
-                { role: "user", content: message },
-              ],
-              stream: true,
-              temperature: 0.4,
-            },
-            {
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${process.env.LILYPAD_API_KEY}`,
-                "Accept": "text/event-stream",
-              },
-              responseType: "stream",
-            }
-          );
-          console.log("✅ Connected to Lilypad API");
-
-          response.data.on("data", async (chunk) => {
-            if (isControllerClosed) return;
-            const chunkString = chunk.toString();
-            receivedContentLength += chunkString.length;
-            allReceivedContent += chunkString;
-            console.log(`🔍 Received raw chunk (${chunkString.length} chars)`);
-            if (chunkString.includes("\n")) {
-              console.log(
-                `📄 Chunk sample with newline: ${chunkString.substring(
-                  0,
-                  Math.min(50, chunkString.length)
-                )}`
-              );
-            }
-            buffer += chunkString;
-            const sseEvents = buffer.split("\n\n");
-            // The last element might be incomplete; save it back into buffer
-            buffer = sseEvents.pop() || "";
-            for (const evt of sseEvents) {
-              const trimmed = evt.trim();
-              if (!trimmed) continue;
-              if (trimmed === "data: [DONE]") {
-                console.log("🏁 Completion marker received");
-                continue;
-              }
-              const dataLine = trimmed
-                .split("\n")
-                .find((l) => l.startsWith("data: "));
-              if (!dataLine) continue;
-              const jsonStr = dataLine.substring(6).trim();
-              if (!jsonStr) continue;
-              let jsonData;
-              try {
-                jsonData = JSON.parse(jsonStr);
-              } catch (err) {
-                console.log(
-                  "⚠️ JSON parse error in SSE event, buffering:",
-                  err.message
-                );
-                continue;
-              }
-              if (jsonData?.choices?.length) {
-                const choice = jsonData.choices[0];
-                if (choice?.delta?.content) {
-                  const content = choice.delta.content;
-                  console.log(
-                    `📤 Sending delta content (${content.length} chars)`
-                  );
-                  await sendChunkedText(content);
-                } else if (choice?.message?.content) {
-                  const content = choice.message.content;
-                  console.log(
-                    `🎯 Sending final content (${
-                      content.length
-                    } chars): "${content.slice(0, 60)}..."`
-                  );
-                  await sendChunkedText(content);
-                }
-                if (choice?.finish_reason) {
-                  console.log(`🛑 Finish reason: ${choice.finish_reason}`);
-                }
-              }
-            }
-          });
-
-          response.data.on("end", async () => {
-            console.log(
-              `🎉 Stream ended. Sent: ${totalContentLength} chars, Received: ${receivedContentLength} chars`
-            );
-            console.log(
-              `📚 Received content sample: ${allReceivedContent.substring(
-                0,
-                200
-              )}`
-            );
-            if (!hasSentContent && !isControllerClosed) {
-              console.log("⚠️ No content sent, sending fallback message");
-              await sendChunkedText(
-                "I'm having trouble generating a response right now. Please try again."
-              );
-            }
-            // Process any remaining data in the buffer
-            if (buffer.trim() && !isControllerClosed) {
-              console.log(
-                `⚠️ Processing remaining buffer (${buffer.length} chars)`
-              );
-              const dataLine = buffer
-                .split("\n")
-                .find((l) => l.startsWith("data: "));
-              if (dataLine) {
-                const jsonStr = dataLine.substring(6).trim();
-                if (jsonStr && jsonStr !== "[DONE]") {
-                  try {
-                    const jsonData = JSON.parse(jsonStr);
-                    if (jsonData?.choices?.[0]?.delta?.content) {
-                      await sendChunkedText(jsonData.choices[0].delta.content);
-                    } else if (jsonData?.choices?.[0]?.message?.content) {
-                      await sendChunkedText(
-                        jsonData.choices[0].message.content
-                      );
-                    }
-                  } catch (e) {
-                    console.log(
-                      "⚠️ Could not parse remaining buffer:",
-                      e.message
-                    );
-                  }
-                }
-              }
-            }
-            if (!isControllerClosed) {
-              await new Promise((res) => setTimeout(res, 500));
-              try {
-                controller.close();
-                isControllerClosed = true;
-                console.log("🔒 Controller closed");
-              } catch (err) {
-                console.error("❌ Error closing controller:", err.message);
-                isControllerClosed = true;
-              }
-            }
-          });
-
-          response.data.on("error", (err) => {
-            console.error("❌ Stream error:", err);
-            if (!isControllerClosed) {
-              try {
-                controller.error(err);
-                isControllerClosed = true;
-              } catch (e) {
-                console.error(
-                  "❌ Error signaling controller error:",
-                  e.message
-                );
-                isControllerClosed = true;
-              }
-            }
-          });
-        } catch (error) {
-          console.error("❌ Error starting stream:", error);
-          if (error.response) {
-            console.error(
-              "📡 API response error:",
-              error.response.status,
-              error.response.data
-            );
-          } else if (error.request) {
-            console.error("📡 No response received:", error.request);
-          } else {
-            console.error("🔧 Request configuration error:", error.message);
-          }
-          if (!isControllerClosed) {
-            try {
-              controller.error(error);
-              isControllerClosed = true;
-            } catch (e) {
-              console.error("❌ Error signaling controller error:", e.message);
-              isControllerClosed = true;
-            }
-          }
-        }
-      },
+    messages.push({
+      role: "system",
+      content:
+        "You are a helpful assistant. You will answer the user's queries in detail and in an explanatory manner. Use tools when appropriate to provide accurate information. and also when you dont have information about the query.",
     });
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
-        "X-Content-Type-Options": "nosniff",
-        Connection: "keep-alive",
-      },
-    });
+    if (conversation && conversation.length > 0) {
+      messages = [...messages, ...conversation];
+    }
+
+    messages.push({ role: "user", content: message });
+
+    const payload = {
+      model,
+      messages,
+      temperature: 0.5,
+    };
+
+    if (useTools) {
+      payload.tools = chatTools;
+    }
+
+    const initialResponse = await axios.post(
+      "https://anura-testnet.lilypad.tech/api/v1/chat/completions",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.LILYPAD_API_KEY}`,
+        },
+      }
+    );
+
+    const assistantMessage = initialResponse.data.choices[0].message;
+    const hasTool =
+      assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0;
+
+    if (hasTool) {
+      console.log("🔧 Tool calls detected");
+      const toolsUsed = [];
+
+      messages.push(assistantMessage);
+
+      for (const toolCall of assistantMessage.tool_calls) {
+        const {
+          id,
+          function: { name, arguments: argsString },
+        } = toolCall;
+        const args = JSON.parse(argsString);
+
+        console.log(`🔧 Executing tool: ${name}`);
+        toolsUsed.push(name);
+
+        let toolResult;
+        switch (name) {
+          case "searchWeb":
+            toolResult = await searchWeb(args.query, args.num_results);
+            break;
+          default:
+            toolResult = { error: `Unknown tool: ${name}` };
+        }
+
+        messages.push({
+          role: "tool",
+          tool_call_id: id,
+          content: JSON.stringify(toolResult),
+        });
+      }
+
+      console.log("🔄 Making second request with tool results");
+
+      const finalResponse = await axios.post(
+        "https://anura-testnet.lilypad.tech/api/v1/chat/completions",
+        {
+          model,
+          messages,
+          temperature: 0.5,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.LILYPAD_API_KEY}`,
+          },
+        }
+      );
+
+      const finalContent = finalResponse.data.choices[0].message.content;
+
+      return NextResponse.json({
+        content: finalContent,
+        toolsUsed: toolsUsed,
+        fullConversation: messages,
+      });
+    } else {
+      return NextResponse.json({
+        content: assistantMessage.content,
+        toolsUsed: [],
+        fullConversation: [...messages, assistantMessage],
+      });
+    }
   } catch (error) {
     console.error("❌ Fatal API route error:", error);
+
     if (axios.isAxiosError(error)) {
       if (error.response) {
         return NextResponse.json(

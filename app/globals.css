@@ -1,8 +1,30 @@
+/* app/globals.css */
 @import "tailwindcss";
 
-/* /home/varun/nexamind/app/globals.css */
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 248, 250, 252;
+  --background-end-rgb: 255, 255, 255;
+}
 
-/* Chat animations */
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 30, 41, 59;
+  color-scheme: dark;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Typing indicator animation */
 .typing-indicator {
   display: flex;
   justify-content: flex-start;
@@ -30,9 +52,7 @@
 }
 
 @keyframes typing-bounce {
-  0%,
-  80%,
-  100% {
+  0%, 80%, 100% {
     transform: scale(0);
   }
   40% {
@@ -40,36 +60,11 @@
   }
 }
 
-.animated-text {
-  display: inline-block;
-  animation: fadeIn 0.3s ease-in-out;
+.dark .typing-indicator span {
+  background-color: #aaa;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.text-typing-effect {
-  border-right: 2px solid #000;
-  animation: blink-caret 0.75s step-end infinite;
-}
-
-@keyframes blink-caret {
-  from,
-  to {
-    border-color: transparent;
-  }
-  50% {
-    border-color: black;
-  }
-}
-
-
+/* Text formatting for the chat messages */
 .text-formatting h1 {
   font-size: 1.5rem;
   font-weight: bold;
@@ -118,7 +113,6 @@
   font-style: italic;
 }
 
-/* Add new styles for tables and links */
 .text-formatting table {
   border-collapse: collapse;
   width: 100%;
@@ -137,8 +131,22 @@
   font-weight: bold;
 }
 
+.dark .text-formatting th {
+  background-color: #2d3748;
+  color: #e2e8f0;
+  border-color: #4a5568;
+}
+
+.dark .text-formatting td {
+  border-color: #4a5568;
+}
+
 .text-formatting tr:nth-child(even) {
   background-color: #f9f9f9;
+}
+
+.dark .text-formatting tr:nth-child(even) {
+  background-color: #2d3748;
 }
 
 .text-formatting a {
@@ -150,7 +158,10 @@
   text-decoration: underline;
 }
 
-/* For dark theme messages (user messages) */
+.dark .text-formatting a {
+  color: #60a5fa;
+}
+
 .bg-blue-500 .text-formatting a {
   color: #93c5fd;
   text-decoration: underline;
@@ -158,4 +169,44 @@
 
 .text-formatting .overflow-x-auto {
   overflow-x: auto;
+}
+
+.text-formatting code {
+  background-color: #f1f5f9;
+  color: #ef4444;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875rem;
+}
+
+.dark .text-formatting code {
+  background-color: #1e293b;
+  color: #f87171;
+}
+
+.text-formatting pre {
+  background-color: #f1f5f9;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.dark .text-formatting pre {
+  background-color: #1e293b;
+}
+
+@layer components {
+  .text-formatting a {
+    @apply text-blue-600 hover:underline dark:text-blue-400;
+  }
+  
+  .text-formatting code {
+    @apply bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 font-mono text-sm;
+  }
+  
+  .text-formatting pre {
+    @apply bg-gray-100 dark:bg-gray-800 rounded-md p-4 my-4 overflow-x-auto;
+  }
 }
