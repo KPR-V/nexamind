@@ -25,7 +25,8 @@ import { ThemeProvider } from "next-themes";
 import { UserDataProvider } from "../contexts/UserDataContext";
 import "@rainbow-me/rainbowkit/styles.css";
 
-const projectId =`${process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}` || "YOUR_PROJECT_ID";
+const projectId =
+  `${process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}` || "YOUR_PROJECT_ID";
 const chains = [
   mainnet,
   polygon,
@@ -72,7 +73,9 @@ export function Providers({ children }) {
           })}
         >
           <UserDataProvider>
-            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>{children}</ThemeProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+              {children}
+            </ThemeProvider>
           </UserDataProvider>
         </RainbowKitProvider>
       </WagmiProvider>

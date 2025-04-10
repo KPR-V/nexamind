@@ -122,13 +122,12 @@ export async function POST(request) {
       );
 
       const finalContent = finalResponse.data.choices[0].message.content;
-//  console.timeEnd("Total response time");
+      //  console.timeEnd("Total response time");
       return NextResponse.json({
         content: finalContent,
         toolsUsed: toolsUsed,
         fullConversation: messages,
       });
-     
     } else {
       //  console.timeEnd("Total response time");
       return NextResponse.json({
@@ -137,7 +136,6 @@ export async function POST(request) {
         fullConversation: [...messages, assistantMessage],
       });
     }
-   
   } catch (error) {
     console.error("❌ Fatal API route error:", error);
 

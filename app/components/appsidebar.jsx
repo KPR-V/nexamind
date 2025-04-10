@@ -21,15 +21,12 @@ export default function AppSidebar({
     useSidebar();
   const { disconnect } = useDisconnect();
 
-
   const sidebarWidth = collapsed && !isMobile ? "w-16" : "w-72";
-
 
   const showLabels = !collapsed || isMobile;
 
   return (
     <>
-    
       <button
         onClick={toggleSidebar}
         className="fixed top-4 left-4 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg lg:hidden"
@@ -38,7 +35,6 @@ export default function AppSidebar({
         {mobileOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
       </button>
 
-     
       <AnimatePresence>
         {mobileOpen && isMobile && (
           <motion.div
@@ -51,7 +47,6 @@ export default function AppSidebar({
         )}
       </AnimatePresence>
 
-    
       <AnimatePresence>
         {(mobileOpen || !isMobile) && (
           <motion.div
@@ -61,12 +56,11 @@ export default function AppSidebar({
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className={`fixed left-0 top-0 h-screen ${sidebarWidth} bg-gray-900 text-white border-r border-gray-800 shadow-xl z-40 flex flex-col transition-all duration-300`}
           >
-         
             <div className="p-4 border-b border-gray-800 flex items-center justify-between">
               {showLabels ? (
                 <span className="font-semibold text-white">NexaMind</span>
               ) : (
-                <span></span> 
+                <span></span>
               )}
 
               {!isMobile ? (
@@ -90,7 +84,6 @@ export default function AppSidebar({
               )}
             </div>
 
-         
             <div className="p-4">
               <button
                 onClick={() => {
@@ -106,7 +99,6 @@ export default function AppSidebar({
               </button>
             </div>
 
-         
             <div className="flex-1 overflow-y-auto p-2 no-scrollbar">
               {showLabels && (
                 <h3 className="text-xs uppercase font-semibold text-gray-400 px-2 mb-2">
@@ -117,14 +109,12 @@ export default function AppSidebar({
               {conversations && conversations.length > 0 ? (
                 <ul className="space-y-1">
                   {conversations.map((convo, index) => {
-                
                     const firstMessage =
                       convo.messages && convo.messages.length > 0
                         ? convo.messages.find((m) => m.sender === "user")
                             ?.text || "New Conversation"
                         : "New Conversation";
 
-                   
                     const displayTitle =
                       firstMessage.length > 30
                         ? firstMessage.substring(0, 30) + "..."
@@ -185,7 +175,6 @@ export default function AppSidebar({
               )}
             </div>
 
-      
             <div className="border-t border-gray-800 p-4">
               <Link
                 href="/dashboard"

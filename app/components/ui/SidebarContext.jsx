@@ -8,7 +8,7 @@ import React, {
 } from "react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; 
+const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 export const SidebarContext = createContext(null);
 
@@ -25,12 +25,10 @@ export function SidebarProvider({ children, defaultCollapsed = false }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
- 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 1024);
 
-     
       if (window.innerWidth >= 1024 && mobileOpen) {
         setMobileOpen(false);
       }
@@ -39,7 +37,6 @@ export function SidebarProvider({ children, defaultCollapsed = false }) {
     handleResize();
     window.addEventListener("resize", handleResize);
 
-    
     const cookies = document.cookie.split(";");
     const sidebarCookie = cookies.find((c) =>
       c.trim().startsWith(`${SIDEBAR_COOKIE_NAME}=`)
@@ -52,7 +49,6 @@ export function SidebarProvider({ children, defaultCollapsed = false }) {
     return () => window.removeEventListener("resize", handleResize);
   }, [mobileOpen]);
 
- 
   const toggleSidebar = useCallback(() => {
     if (isMobile) {
       setMobileOpen((prev) => !prev);

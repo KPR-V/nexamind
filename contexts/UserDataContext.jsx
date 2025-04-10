@@ -1,5 +1,5 @@
 "use client";
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 const StorachaStorage = dynamic(() => import("../utils/storachastorage"), {
   ssr: false,
 });

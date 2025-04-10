@@ -19,7 +19,6 @@ export async function POST(request) {
       );
     }
 
-   
     // console.log(`📋 Processing image generation with model: ${model}`);
     // console.log(
     //   `🎨 Prompt: "${prompt.substring(0, 50)}${
@@ -42,7 +41,7 @@ export async function POST(request) {
       }
     );
 
-  // console.timeEnd("Total response time");
+    // console.timeEnd("Total response time");
     return new Response(response.data, {
       headers: {
         "Content-Type": "image/png",
@@ -59,7 +58,7 @@ export async function POST(request) {
             error: "Image Generation Error",
             status: error.response.status,
             message: error.response?.data
-              ? Buffer.from(error.response.data).toString("utf8") 
+              ? Buffer.from(error.response.data).toString("utf8")
               : "Unknown server error",
           },
           { status: error.response.status }

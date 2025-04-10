@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -12,7 +11,6 @@ const ChatApp = dynamic(() => import("./components/chatapp"), {
 export default function Page() {
   const [conversations, setConversations] = useState([]);
   const [currentConversation, setCurrentConversation] = useState(null);
-
 
   useEffect(() => {
     try {
@@ -34,17 +32,15 @@ export default function Page() {
     }
   }, [conversations]);
 
-
   const handleSelectConversation = (conversation) => {
     setCurrentConversation(conversation);
   };
-
 
   const handleNewChat = () => {
     setCurrentConversation(null);
 
     localStorage.removeItem("chatMessages");
-  
+
     window.location.reload();
   };
 

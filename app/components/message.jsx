@@ -260,7 +260,6 @@ const Message = memo(({ message, toolsUsed = [] }) => {
             </div>
           )}
 
-          
           {toolsUsed && toolsUsed.length > 0 && isBot && (
             <div className="mt-2 flex flex-wrap gap-2">
               {toolsUsed.includes("search_web") && (

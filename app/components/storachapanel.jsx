@@ -26,7 +26,6 @@ const StorachaPanel = ({
 
     setUploadingFile(true);
     try {
-     
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       setUploadResult({

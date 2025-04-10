@@ -7,10 +7,8 @@ export default {
   theme: {
     extend: {
       colors: {
-
         "blue-gradient-from": "#3b82f6",
         "blue-gradient-to": "#2563eb",
-
 
         "purple-gradient-from": "#8b5cf6",
         "purple-gradient-to": "#7c3aed",
