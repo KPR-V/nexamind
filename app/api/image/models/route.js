@@ -1,4 +1,3 @@
-// app/api/image/models/route.js
 import { NextResponse } from "next/server";
 import axios from "axios";
 import dotenv from "dotenv";

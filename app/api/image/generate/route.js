@@ -1,10 +1,10 @@
-// app/api/image/generate/route.js
 import { NextResponse } from "next/server";
 import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
 
 export async function POST(request) {
+  // console.time("Total response time");
   try {
     const { model, prompt } = await request.json();
 
@@ -19,13 +19,13 @@ export async function POST(request) {
       );
     }
 
-    // Log the request details
-    console.log(`📋 Processing image generation with model: ${model}`);
-    console.log(
-      `🎨 Prompt: "${prompt.substring(0, 50)}${
-        prompt.length > 50 ? "..." : ""
-      }"`
-    );
+   
+    // console.log(`📋 Processing image generation with model: ${model}`);
+    // console.log(
+    //   `🎨 Prompt: "${prompt.substring(0, 50)}${
+    //     prompt.length > 50 ? "..." : ""
+    //   }"`
+    // );
 
     const response = await axios.post(
       "https://anura-testnet.lilypad.tech/api/v1/image/generate",
@@ -42,7 +42,7 @@ export async function POST(request) {
       }
     );
 
-    // Return the raw image data
+  // console.timeEnd("Total response time");
     return new Response(response.data, {
       headers: {
         "Content-Type": "image/png",
@@ -59,7 +59,7 @@ export async function POST(request) {
             error: "Image Generation Error",
             status: error.response.status,
             message: error.response?.data
-              ? Buffer.from(error.response.data).toString("utf8") // Convert binary error response to string
+              ? Buffer.from(error.response.data).toString("utf8") 
               : "Unknown server error",
           },
           { status: error.response.status }

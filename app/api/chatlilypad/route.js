@@ -14,7 +14,8 @@ const toolSupportedModels = [
 ];
 
 export async function POST(request) {
-  console.log("📥 Received request to chatlilypad endpoint");
+  // console.time("Total response time");
+  // console.log("📥 Received request to chatlilypad endpoint");
   try {
     const {
       model,
@@ -22,12 +23,12 @@ export async function POST(request) {
       conversation = [],
       enableTools = true,
     } = await request.json();
-    console.log(`📋 Processing request with model: ${model}`);
-    console.log(
-      `💬 User message: "${message.substring(0, 50)}${
-        message.length > 50 ? "..." : ""
-      }"`
-    );
+    // console.log(`📋 Processing request with model: ${model}`);
+    // console.log(
+    //   `💬 User message: "${message.substring(0, 50)}${
+    //     message.length > 50 ? "..." : ""
+    //   }"`
+    // );
 
     const modelSupportsTools = toolSupportedModels.includes(model);
     const useTools = modelSupportsTools && enableTools;
@@ -72,7 +73,7 @@ export async function POST(request) {
       assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0;
 
     if (hasTool) {
-      console.log("🔧 Tool calls detected");
+      // console.log("🔧 Tool calls detected");
       const toolsUsed = [];
 
       messages.push(assistantMessage);
@@ -84,7 +85,7 @@ export async function POST(request) {
         } = toolCall;
         const args = JSON.parse(argsString);
 
-        console.log(`🔧 Executing tool: ${name}`);
+        // console.log(`🔧 Executing tool: ${name}`);
         toolsUsed.push(name);
 
         let toolResult;
@@ -103,7 +104,7 @@ export async function POST(request) {
         });
       }
 
-      console.log("🔄 Making second request with tool results");
+      // console.log("🔄 Making second request with tool results");
 
       const finalResponse = await axios.post(
         "https://anura-testnet.lilypad.tech/api/v1/chat/completions",
@@ -121,19 +122,22 @@ export async function POST(request) {
       );
 
       const finalContent = finalResponse.data.choices[0].message.content;
-
+//  console.timeEnd("Total response time");
       return NextResponse.json({
         content: finalContent,
         toolsUsed: toolsUsed,
         fullConversation: messages,
       });
+     
     } else {
+      //  console.timeEnd("Total response time");
       return NextResponse.json({
         content: assistantMessage.content,
         toolsUsed: [],
         fullConversation: [...messages, assistantMessage],
       });
     }
+   
   } catch (error) {
     console.error("❌ Fatal API route error:", error);
 

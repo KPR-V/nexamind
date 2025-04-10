@@ -22,6 +22,26 @@ const Message = memo(({ message, toolsUsed = [] }) => {
       /\[([^\]]+)\]\(([^)]+)\)/g,
       '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline dark:text-blue-400">$1</a>'
     );
+    // Handle regular URLs that aren't already in markdown format
+    escaped = escaped.replace(/(https?:\/\/[^\s]+)/g, (url) => {
+      // Skip URLs that are already wrapped in <a> tags
+      if (url.startsWith("&lt;a href=")) return url;
+
+      // Get human-readable URL for display
+      let displayUrl = url;
+      try {
+        // Try to make URL more readable by removing protocol and truncating if too long
+        const urlObj = new URL(url);
+        displayUrl = urlObj.host + urlObj.pathname;
+        if (displayUrl.length > 30) {
+          displayUrl = displayUrl.substring(0, 30) + "...";
+        }
+      } catch (e) {
+        // If URL parsing fails, use original
+      }
+
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline dark:text-blue-400">${displayUrl}</a>`;
+    });
 
     const lines = escaped.split("\n");
     let inTable = false;
@@ -240,7 +260,7 @@ const Message = memo(({ message, toolsUsed = [] }) => {
             </div>
           )}
 
-          {/* Tool Usage Indicator */}
+          
           {toolsUsed && toolsUsed.length > 0 && isBot && (
             <div className="mt-2 flex flex-wrap gap-2">
               {toolsUsed.includes("search_web") && (

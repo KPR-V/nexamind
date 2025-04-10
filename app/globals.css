@@ -1,20 +1,77 @@
-/* app/globals.css */
 @import "tailwindcss";
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 248, 250, 252;
-  --background-end-rgb: 255, 255, 255;
+.chat-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.dark {
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 15, 23, 42;
-  --background-end-rgb: 30, 41, 59;
-  color-scheme: dark;
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 10px;
 }
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(74, 85, 104, 0.5);
+  border-radius: 10px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(113, 128, 150, 0.7);
+}
+
+/* Updated no-scrollbar utility */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Scrollable container with visible scrollbar */
+.scroll-visible {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(74, 85, 104, 0.5) rgba(30, 41, 59, 0.5);
+}
+@layer base {
+  :root {
+   
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 15, 23, 42;
+    --background-end-rgb: 30, 41, 59;
+    color-scheme: dark;
+  }
+}
+
+
+@layer utilities {
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+
+  .no-scrollbar {
+    -ms-overflow-style: none;  
+    scrollbar-width: none;  
+  }
+}
+
 
 body {
+  overflow-x: hidden;
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
       to bottom,
@@ -24,7 +81,14 @@ body {
     rgb(var(--background-start-rgb));
 }
 
-/* Typing indicator animation */
+
+.chat-container {
+  height: calc(100vh - 150px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+
 .typing-indicator {
   display: flex;
   justify-content: flex-start;
@@ -34,7 +98,7 @@ body {
   width: 8px;
   height: 8px;
   margin: 0 2px;
-  background-color: #888;
+  background-color: #aaa;
   border-radius: 50%;
   animation: typing-bounce 1.4s infinite ease-in-out both;
 }
@@ -60,11 +124,7 @@ body {
   }
 }
 
-.dark .typing-indicator span {
-  background-color: #aaa;
-}
 
-/* Text formatting for the chat messages */
 .text-formatting h1 {
   font-size: 1.5rem;
   font-weight: bold;
@@ -121,45 +181,28 @@ body {
 
 .text-formatting th,
 .text-formatting td {
-  border: 1px solid #ddd;
+  border: 1px solid #4a5568;
   padding: 8px;
   text-align: left;
 }
 
 .text-formatting th {
-  background-color: #f2f2f2;
-  font-weight: bold;
-}
-
-.dark .text-formatting th {
   background-color: #2d3748;
   color: #e2e8f0;
   border-color: #4a5568;
 }
 
-.dark .text-formatting td {
-  border-color: #4a5568;
-}
-
 .text-formatting tr:nth-child(even) {
-  background-color: #f9f9f9;
-}
-
-.dark .text-formatting tr:nth-child(even) {
   background-color: #2d3748;
 }
 
 .text-formatting a {
-  color: #3b82f6;
+  color: #60a5fa;
   text-decoration: none;
 }
 
 .text-formatting a:hover {
   text-decoration: underline;
-}
-
-.dark .text-formatting a {
-  color: #60a5fa;
 }
 
 .bg-blue-500 .text-formatting a {
@@ -172,41 +215,56 @@ body {
 }
 
 .text-formatting code {
-  background-color: #f1f5f9;
-  color: #ef4444;
+  background-color: #1e293b;
+  color: #f87171;
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.875rem;
 }
 
-.dark .text-formatting code {
-  background-color: #1e293b;
-  color: #f87171;
-}
-
 .text-formatting pre {
-  background-color: #f1f5f9;
+  background-color: #1e293b;
   padding: 1rem;
   border-radius: 0.375rem;
   overflow-x: auto;
   margin: 1rem 0;
 }
 
-.dark .text-formatting pre {
-  background-color: #1e293b;
-}
-
 @layer components {
   .text-formatting a {
-    @apply text-blue-600 hover:underline dark:text-blue-400;
+    @apply text-blue-400 hover:underline;
   }
   
   .text-formatting code {
-    @apply bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 font-mono text-sm;
+    @apply bg-gray-800 rounded px-1 py-0.5 font-mono text-sm;
   }
   
   .text-formatting pre {
-    @apply bg-gray-100 dark:bg-gray-800 rounded-md p-4 my-4 overflow-x-auto;
+    @apply bg-gray-800 rounded-md p-4 my-4 overflow-x-auto;
   }
+}
+
+
+html {
+  color-scheme: dark;
+}
+
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #718096;
 }

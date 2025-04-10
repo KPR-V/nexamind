@@ -1,5 +1,3 @@
-// tailwind.config.js
-/** @type {import('tailwindcss').Config} */
 export default {
   darkMode: "class",
   content: [
@@ -9,11 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Blue gradient for text mode
+
         "blue-gradient-from": "#3b82f6",
         "blue-gradient-to": "#2563eb",
 
-        // Purple gradient for image mode
+
         "purple-gradient-from": "#8b5cf6",
         "purple-gradient-to": "#7c3aed",
       },
@@ -23,6 +21,16 @@ export default {
       },
       boxShadow: {
         subtle: "0 2px 5px rgba(0, 0, 0, 0.05)",
+      },
+      sidebar: {
+        DEFAULT: "hsl(var(--sidebar-background))",
+        foreground: "hsl(var(--sidebar-foreground))",
+        primary: "hsl(var(--sidebar-primary))",
+        "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+        accent: "hsl(var(--sidebar-accent))",
+        "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+        border: "hsl(var(--sidebar-border))",
+        ring: "hsl(var(--sidebar-ring))",
       },
     },
   },

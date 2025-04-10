@@ -1,4 +1,4 @@
-// components/chatinput.jsx
+// components/ChatInput.jsx
 "use client";
 import React, { memo, useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -12,14 +12,12 @@ const ChatInput = memo(
     const fileInputRef = useRef(null);
 
     useEffect(() => {
-      // Autofocus input on component mount
       if (inputRef.current) {
         inputRef.current.focus();
       }
     }, []);
 
     useEffect(() => {
-      // Show suggested prompts based on last message
       if (lastMessage && lastMessage.sender === "bot" && !isProcessing) {
         generateSuggestions(lastMessage.text);
       } else {
@@ -28,7 +26,6 @@ const ChatInput = memo(
     }, [lastMessage, isProcessing]);
 
     const generateSuggestions = (text) => {
-      // Simple heuristics for generating follow-up prompts
       const lowercaseText = text?.toLowerCase() || "";
       const defaultSuggestions = [
         "Tell me more",
@@ -76,7 +73,6 @@ const ChatInput = memo(
     };
 
     const handleKeyDown = (e) => {
-      // Submit on Enter (but not with Shift+Enter for new lines)
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSubmit(e);
@@ -97,21 +93,20 @@ const ChatInput = memo(
         return;
       }
 
-      // Check file size (limit to 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        alert("File size too large. Please upload an image smaller than 10MB");
+      if (file.size > 100 * 1024 * 1024) {
+        alert("File size too large. Please upload an image smaller than 100MB");
         return;
       }
 
       onImageUpload(file);
-      // Reset file input
+
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     };
 
     return (
-      <div className="mt-4">
+      <div className="bg-gray-900 z-20">
         {suggestions.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {suggestions.map((suggestion, index) => (
@@ -121,7 +116,7 @@ const ChatInput = memo(
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-1.5 rounded-full text-gray-700 dark:text-gray-300 transition-colors shadow-sm"
+                className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full text-gray-300 transition-colors shadow-sm"
               >
                 {suggestion}
               </motion.button>
@@ -129,7 +124,10 @@ const ChatInput = memo(
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex items-end">
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-end bg-gray-900 rounded-md"
+        >
           <div className="relative flex-1">
             <textarea
               ref={inputRef}
@@ -146,10 +144,8 @@ const ChatInput = memo(
                   ? localMessage.split("\n").length
                   : 1
               }
-              className={`w-full border dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 rounded-tl-md rounded-bl-md p-3 pr-10 resize-none transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                isFocused
-                  ? "border-blue-500 dark:border-blue-400"
-                  : "border-gray-300"
+              className={`w-full bg-gray-800 text-gray-200 border-gray-700 rounded-tl-md rounded-bl-md p-3 pr-10 resize-none transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                isFocused ? "border-blue-500" : "border-gray-700"
               }`}
               disabled={isProcessing}
               onFocus={() => setIsFocused(true)}
@@ -162,7 +158,7 @@ const ChatInput = memo(
                 type="button"
                 onClick={() => fileInputRef.current.click()}
                 disabled={isProcessing}
-                className="absolute right-2 bottom-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded-full transition-colors"
+                className="absolute right-2 bottom-2 text-gray-400 hover:text-gray-300 p-1 rounded-full transition-colors"
                 title="Upload image"
               >
                 <svg
@@ -197,12 +193,12 @@ const ChatInput = memo(
             whileTap={{ scale: 0.95 }}
             className={`rounded-tr-md rounded-br-md h-full p-3 text-white transition-colors flex items-center justify-center min-w-[60px] ${
               isProcessing
-                ? "bg-gray-400 dark:bg-gray-600"
+                ? "bg-gray-600"
                 : localMessage.trim()
                 ? isImageMode
-                  ? "bg-purple-500 hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700"
-                  : "bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-                : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
+                  ? "bg-purple-600 hover:bg-purple-700"
+                  : "bg-blue-600 hover:bg-blue-700"
+                : "bg-gray-700 cursor-not-allowed"
             }`}
           >
             {isProcessing ? (

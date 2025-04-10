@@ -5,8 +5,38 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import Message from "./message";
 import ChatInput from "./chatinput";
+import { useUserData } from "../../contexts/UserDataContext";
+import FileUpload from "./FileUpload";
+import Navbar from "./navbar";
+import StorachaPanel from "./storachapanel";
+import { useSidebar } from "./ui/SidebarContext";
 
-// List of models that support tool calls
+const apiClient = axios.create({
+  timeout: 190000,
+  retryDelay: 3000,
+  maxRetries: 3,
+});
+
+apiClient.interceptors.response.use(undefined, async (err) => {
+  const { config, message } = err;
+  if (!config || !config.retry) {
+    return Promise.reject(err);
+  }
+  config.__retryCount = config.__retryCount || 0;
+  if (config.__retryCount >= config.maxRetries) {
+    return Promise.reject(err);
+  }
+  config.__retryCount += 1;
+  const backoff = new Promise((resolve) => {
+    setTimeout(() => {
+      console.log("Retrying request", config.url);
+      resolve();
+    }, config.retryDelay || 1);
+  });
+  await backoff;
+  return await apiClient(config);
+});
+
 const toolSupportedModels = [
   "llama3.1:8b",
   "qwen2.5:7b",
@@ -15,7 +45,7 @@ const toolSupportedModels = [
   "mistral:7b",
 ];
 
-const ChatApp = () => {
+const ChatApp = ({ initialConversation, onConversationSaved }) => {
   const [messages, setMessages] = useState([]);
   const [models, setModels] = useState([]);
   const [imageModels, setImageModels] = useState([]);
@@ -23,7 +53,7 @@ const ChatApp = () => {
   const [selectedImageModel, setSelectedImageModel] = useState("");
   const [showModelDialog, setShowModelDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode only
   const [error, setError] = useState(null);
   const [isImageMode, setIsImageMode] = useState(false);
   const [enableTools, setEnableTools] = useState(true);
@@ -31,6 +61,10 @@ const ChatApp = () => {
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const conversationRef = useRef([]);
+  const [showStorachaPanel, setShowStorachaPanel] = useState(false);
+  const { isConnected, address, saveConversation, saveGeneratedImage } =
+    useUserData();
+  const { collapsed, isMobile } = useSidebar();
 
   // Load preferences from localStorage
   useEffect(() => {
@@ -48,17 +82,8 @@ const ChatApp = () => {
         setSelectedModel(savedModel);
       }
 
-      // Check for saved theme preference
-      const savedTheme = localStorage.getItem("darkMode");
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-      const shouldUseDark =
-        savedTheme === "true" || (savedTheme === null && prefersDark);
-      setIsDarkMode(shouldUseDark);
-
-      // Set up theme class on body
-      document.documentElement.classList.toggle("dark", shouldUseDark);
+      // Always use dark mode
+      document.documentElement.classList.add("dark");
 
       // Check for saved image mode
       const savedImageMode = localStorage.getItem("imageMode");
@@ -93,11 +118,16 @@ const ChatApp = () => {
     }
   }, [messages]);
 
-  // Save dark mode preference
   useEffect(() => {
-    localStorage.setItem("darkMode", isDarkMode.toString());
-    document.documentElement.classList.toggle("dark", isDarkMode);
-  }, [isDarkMode]);
+    if (initialConversation && initialConversation.messages) {
+      setMessages(initialConversation.messages);
+      // Update conversation context reference
+      conversationRef.current = initialConversation.messages.map((msg) => ({
+        role: msg.sender === "user" ? "user" : "assistant",
+        content: msg.text,
+      }));
+    }
+  }, [initialConversation]);
 
   // Save image mode preference
   useEffect(() => {
@@ -169,10 +199,6 @@ const ChatApp = () => {
     setShowModelDialog((prev) => !prev);
   };
 
-  const toggleDarkMode = () => {
-    setIsDarkMode((prev) => !prev);
-  };
-
   const toggleImageMode = () => {
     setIsImageMode((prev) => !prev);
   };
@@ -238,6 +264,30 @@ const ChatApp = () => {
       await handleImageGeneration(message);
     } else {
       await handleTextResponse(message);
+    }
+  };
+
+  const handleSaveToStoracha = async () => {
+    if (!isConnected) {
+      setError("Please connect your wallet to save conversations to Storacha");
+      return;
+    }
+
+    if (messages.length === 0) {
+      setError("No conversation to save");
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      const result = await saveConversation(messages);
+
+      alert(`Conversation saved to Storacha! CID: ${result.cid}`);
+    } catch (error) {
+      console.error("Failed to save to Storacha:", error);
+      setError("Failed to save conversation to Storacha. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -352,6 +402,21 @@ const ChatApp = () => {
             : msg
         )
       );
+
+      if (isConnected && address) {
+        // Convert base64 to blob
+        const fetchResponse = await fetch(base64Image);
+        const imageBlob = await fetchResponse.blob();
+
+        // Save to Storacha in background
+        saveGeneratedImage(imageBlob, prompt)
+          .then((result) => {
+            console.log("Image saved to Storacha:", result.cid);
+          })
+          .catch((err) => {
+            console.error("Failed to save image to Storacha:", err);
+          });
+      }
     } catch (error) {
       console.error("❌ Error generating image:", error);
 
@@ -413,15 +478,23 @@ const ChatApp = () => {
       // Check if model supports tools
       const modelSupportsTools = toolSupportedModels.includes(selectedModel);
       const useTools = modelSupportsTools && enableTools;
-
+      const requestConfig = {
+        retry: true,
+        maxRetries: 3,
+        retryDelay: 3000,
+      };
       // Prepare conversation history for context
-      const response = await axios.post("/api/chatlilypad", {
-        model: selectedModel,
-        message: currentMessage,
-        conversation: conversationRef.current,
-        imageData: imageData, // Pass image data if available
-        enableTools: useTools, // Only enable tools if supported and enabled
-      });
+      const response = await apiClient.post(
+        "/api/chatlilypad",
+        {
+          model: selectedModel,
+          message: currentMessage,
+          conversation: conversationRef.current,
+          imageData: imageData, // Pass image data if available
+          enableTools: useTools, // Only enable tools if supported and enabled
+        },
+        requestConfig
+      );
 
       // If the response has a content property, it's the new JSON format with tool info
       if (response.data.content) {
@@ -510,350 +583,188 @@ const ChatApp = () => {
 
   return (
     <div
-      className={`flex flex-col h-screen p-4 transition-colors ${
-        isDarkMode ? "dark" : ""
+      className={`flex flex-col h-screen transition-all duration-300 ${
+        !isMobile && collapsed ? "lg:ml-16" : "lg:ml-72"
       }`}
     >
-      <div className="bg-white dark:bg-gray-900 transition-colors duration-200 flex-1 flex flex-col max-w-4xl mx-auto w-full rounded-lg shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
-        {/* Header */}
-        <div className="border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between bg-white dark:bg-gray-900">
-          <div className="flex items-center">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white mr-3 shadow-md">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-                />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                Nexamind Chat
-              </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {isImageMode ? "Image Generation Mode" : "Text Chat Mode"}
-                {!isImageMode &&
-                  toolSupportedModels.includes(selectedModel) && (
-                    <span className="ml-2">
-                      • Tools {enableTools ? "Enabled" : "Disabled"}
-                    </span>
-                  )}
-              </p>
-            </div>
-          </div>
+      <Navbar
+        isImageMode={isImageMode}
+        setIsImageMode={toggleImageMode}
+        selectedModel={selectedModel}
+        toggleModelDialog={toggleModelDialog}
+        enableTools={enableTools}
+        toggleTools={toggleTools}
+        isConnected={isConnected}
+        showStorachaPanel={showStorachaPanel}
+        setShowStorachaPanel={setShowStorachaPanel}
+        isModelToolCapable={isModelToolCapable}
+        clearConversation={clearConversation}
+        downloadConversation={downloadConversation}
+        collapsed={collapsed}
+      />
 
-          <div className="flex items-center space-x-3">
-            {/* Mode toggle */}
-            <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
-              <button
-                onClick={() => setIsImageMode(false)}
-                className={`text-sm px-2 py-1 rounded ${
-                  !isImageMode
-                    ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                    : "text-gray-600 dark:text-gray-400"
-                }`}
-              >
-                Text
-              </button>
-              <button
-                onClick={() => setIsImageMode(true)}
-                className={`text-sm px-2 py-1 rounded ${
-                  isImageMode
-                    ? "bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm"
-                    : "text-gray-600 dark:text-gray-400"
-                }`}
-              >
-                Image
-              </button>
-            </div>
-
-            {/* Tools toggle (only show if model supports tools and not in image mode) */}
-            {!isImageMode && isModelToolCapable(selectedModel) && (
-              <button
-                onClick={toggleTools}
-                className={`text-sm px-3 py-1.5 rounded-md transition-colors ${
-                  enableTools
-                    ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400"
-                }`}
-              >
-                <div className="flex items-center">
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  Tools
-                </div>
-              </button>
-            )}
-
-            <button
-              onClick={toggleDarkMode}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded-full transition-colors"
-              aria-label="Toggle dark mode"
-            >
-              {isDarkMode ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-5 h-5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-5 h-5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"
-                  />
-                </svg>
-              )}
-            </button>
-
-            <button
-              onClick={toggleModelDialog}
-              className="flex items-center text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-1.5 rounded-md text-gray-700 dark:text-gray-300 transition-colors"
-            >
-              <span className="mr-1">Model:</span>
-              <span className="font-semibold">{selectedModel || "Select"}</span>
-            </button>
-
-            <div className="relative group">
-              <button
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded-full"
-                aria-label="Menu"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-5 h-5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
-                  />
-                </svg>
-              </button>
-
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 hidden group-hover:block z-10">
-                <div className="py-1">
-                  <button
-                    onClick={clearConversation}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    Clear conversation
-                  </button>
-                  <button
-                    onClick={downloadConversation}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    Download chat
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Chat container */}
-        <div
-          ref={chatContainerRef}
-          className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-colors"
-        >
-          {error && (
-            <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-md mb-4 flex items-center justify-between">
-              <div className="flex items-center">
-                <svg
-                  className="w-5 h-5 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {error}
-              </div>
-              <button
-                onClick={() => setError(null)}
-                className="text-red-800 dark:text-red-200 hover:text-red-900 dark:hover:text-red-100"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
-
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-8 h-8 text-white"
-                >
-                  {isImageMode ? (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
-                    />
-                  ) : (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
-                    />
-                  )}
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                {isImageMode
-                  ? "Create AI-generated images"
-                  : "Start a new conversation"}
-              </h2>
-              <p className="text-gray-500 dark:text-gray-400 max-w-md">
-                {isImageMode
-                  ? "Describe the image you want to generate in detail. The more specific you are, the better the results."
-                  : "Ask questions or start a conversation with the AI. Type your message below to begin."}
-              </p>
-
-              {/* Quick prompt suggestions */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 max-w-md">
-                {isImageMode
-                  ? [
-                      "A breathtaking mountain landscape at sunset",
-                      "A futuristic city with flying cars and neon lights",
-                      "A cute cat astronaut floating in space",
-                      "A magical forest with glowing mushrooms and fairies",
-                    ]
-                  : [
-                      "Explain quantum computing in simple terms",
-                      "What's the weather in Tokyo right now?",
-                      "Help me plan a 7-day trip to Japan",
-                      "What are the latest developments in AI?",
-                    ].map((prompt, idx) => (
-                      <motion.button
-                        key={idx}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="text-left p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
-                        onClick={() => handleSendMessage(prompt)}
-                      >
-                        {prompt}
-                      </motion.button>
-                    ))}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((msg, index) => (
-                <Message
-                  key={msg.id || index}
-                  message={msg}
-                  toolsUsed={messageTools[msg.id] || []}
-                />
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-
-        {/* Input area */}
-        <div className="border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900">
-          <ChatInput
-            onSend={handleSendMessage}
-            onImageUpload={handleImageUpload}
+      <div className="flex-1 flex flex-col overflow-hidden bg-gray-900">
+        <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-4 relative">
+          {/* StorachaPanel as modal */}
+          <StorachaPanel
+            isOpen={showStorachaPanel}
+            onClose={() => setShowStorachaPanel(false)}
+            onSaveConversation={handleSaveToStoracha}
             isProcessing={isProcessing}
-            lastMessage={getLastMessage()}
-            isImageMode={isImageMode}
+            hasMessages={messages.length > 0}
           />
 
-          {/* Display selected models info */}
-          <div className="mt-2 flex flex-wrap text-xs text-gray-500 dark:text-gray-400">
-            <span className="mr-4">
-              {isImageMode ? "Image" : "Chat"}:{" "}
-              {isImageMode
-                ? selectedImageModel
-                : selectedModel || "No model selected"}
-            </span>
+          <div
+            ref={chatContainerRef}
+            className="h-[calc(100vh-180px)] overflow-y-auto scroll-visible py-4 pb-8"
+          >
+            {error && (
+              <div className="bg-red-900/30 border border-red-800 text-red-200 px-4 py-3 rounded-md mb-4 flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {error}
+                </div>
+                <button
+                  onClick={() => setError(null)}
+                  className="text-red-200 hover:text-red-100"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="w-8 h-8 text-white"
+                  >
+                    {isImageMode ? (
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                      />
+                    ) : (
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
+                      />
+                    )}
+                  </svg>
+                </div>
+                <h2 className="text-xl font-semibold text-gray-300 mb-2">
+                  {isImageMode
+                    ? "Create AI-generated images"
+                    : "Start a new conversation"}
+                </h2>
+                <p className="text-gray-400 max-w-md">
+                  {isImageMode
+                    ? "Describe the image you want to generate in detail. The more specific you are, the better the results."
+                    : "Ask questions or start a conversation with the AI. Type your message below to begin."}
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 max-w-xl">
+                  {isImageMode
+                    ? [
+                        "A breathtaking mountain landscape at sunset",
+                        "A futuristic city with flying cars and neon lights",
+                        "A cute cat astronaut floating in space",
+                        "A magical forest with glowing mushrooms and fairies",
+                      ]
+                    : [
+                        "Explain quantum computing in simple terms",
+                        "What's the weather in Tokyo right now?",
+                        "Help me plan a 7-day trip to Japan",
+                        "What are the latest developments in AI?",
+                      ].map((prompt, idx) => (
+                        <motion.button
+                          key={idx}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="text-left p-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
+                          onClick={() => handleSendMessage(prompt)}
+                        >
+                          {prompt}
+                        </motion.button>
+                      ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg, index) => (
+                  <Message
+                    key={msg.id || index}
+                    message={msg}
+                    toolsUsed={messageTools[msg.id] || []}
+                  />
+                ))}
+                <div ref={messagesEndRef} className="h-4" />
+              </div>
+            )}
+          </div>
+
+          <div className="sticky bottom-0 left-0 right-0 z-10 bg-gray-900 pt-4 pb-2 border-t border-gray-800">
+            <ChatInput
+              onSend={handleSendMessage}
+              onImageUpload={handleImageUpload}
+              isProcessing={isProcessing}
+              lastMessage={getLastMessage()}
+              isImageMode={isImageMode}
+            />
+            <div className="mt-2 flex flex-wrap text-xs text-gray-400">
+              <span className="mr-4">
+                {isImageMode ? "Image" : "Chat"}:{" "}
+                {isImageMode
+                  ? selectedImageModel || "No model selected"
+                  : selectedModel || "No model selected"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Model selection dialog */}
+      {/* Model Selection Dialog */}
       {showModelDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-y-auto"
+            className="bg-gray-800 rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-y-auto"
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                Select Models
-              </h2>
+              <h2 className="text-xl font-bold text-white">Select Models</h2>
               <button
                 onClick={toggleModelDialog}
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                className="text-gray-400 hover:text-gray-300"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -873,11 +784,9 @@ const ChatApp = () => {
             </div>
 
             <div className="mb-6">
-              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-                Chat Models
-              </h3>
+              <h3 className="font-medium text-white mb-2">Chat Models</h3>
               {models.length === 0 ? (
-                <div className="text-gray-500 dark:text-gray-400 flex items-center p-3 border border-gray-200 dark:border-gray-700 rounded-md">
+                <div className="text-gray-400 flex items-center p-3 border border-gray-700 rounded-md">
                   <svg
                     className="animate-spin h-5 w-5 mr-3 text-blue-500"
                     xmlns="http://www.w3.org/2000/svg"
@@ -908,15 +817,15 @@ const ChatApp = () => {
                       onClick={() => handleModelSelect(model)}
                       className={`p-3 border rounded-md cursor-pointer transition-colors ${
                         selectedModel === model
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-400"
-                          : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          ? "border-blue-500 bg-blue-900/30"
+                          : "border-gray-700 hover:bg-gray-700"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           {selectedModel === model && (
                             <svg
-                              className="w-5 h-5 text-blue-500 dark:text-blue-400 mr-2"
+                              className="w-5 h-5 text-blue-400 mr-2"
                               fill="currentColor"
                               viewBox="0 0 20 20"
                             >
@@ -930,15 +839,14 @@ const ChatApp = () => {
                           <span
                             className={`${
                               selectedModel === model ? "font-medium" : ""
-                            }`}
+                            } text-white`}
                           >
                             {model}
                           </span>
                         </div>
 
-                      
                         {toolSupportedModels.includes(model) && (
-                          <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full flex items-center">
+                          <span className="text-xs px-2 py-1 bg-green-900/30 text-green-300 rounded-full flex items-center">
                             <svg
                               className="w-3 h-3 mr-1"
                               viewBox="0 0 20 20"
@@ -961,11 +869,11 @@ const ChatApp = () => {
             </div>
 
             <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+              <h3 className="font-medium text-white mb-2">
                 Image Generation Models
               </h3>
               {imageModels.length === 0 ? (
-                <div className="text-gray-500 dark:text-gray-400 flex items-center p-3 border border-gray-200 dark:border-gray-700 rounded-md">
+                <div className="text-gray-400 flex items-center p-3 border border-gray-700 rounded-md">
                   <svg
                     className="animate-spin h-5 w-5 mr-3 text-purple-500"
                     xmlns="http://www.w3.org/2000/svg"
@@ -996,14 +904,14 @@ const ChatApp = () => {
                       onClick={() => handleImageModelSelect(model)}
                       className={`p-3 border rounded-md cursor-pointer transition-colors ${
                         selectedImageModel === model
-                          ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30 dark:border-purple-400"
-                          : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          ? "border-purple-500 bg-purple-900/30"
+                          : "border-gray-700 hover:bg-gray-700"
                       }`}
                     >
                       <div className="flex items-center">
                         {selectedImageModel === model && (
                           <svg
-                            className="w-5 h-5 text-purple-500 dark:text-purple-400 mr-2"
+                            className="w-5 h-5 text-purple-400 mr-2"
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
@@ -1017,7 +925,7 @@ const ChatApp = () => {
                         <span
                           className={`${
                             selectedImageModel === model ? "font-medium" : ""
-                          }`}
+                          } text-white`}
                         >
                           {model}
                         </span>
