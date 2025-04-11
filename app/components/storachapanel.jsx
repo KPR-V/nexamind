@@ -1,8 +1,9 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, FileUp } from "lucide-react";
-
+import { useAccount } from "wagmi";
+import axios from "axios";
 const StorachaPanel = ({
   isOpen,
   onClose,
@@ -14,9 +15,17 @@ const StorachaPanel = ({
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
   const fileInputRef = useRef(null);
+ const { address } = useAccount();
 
 
+const apicall= async ()=>{
+const response  = await axios.post("http://localhost:5000/createstorachaclient",{
 
+  walletaddress: address
+})
+const data = await response.data;
+console.log(data)
+}
   const handleFileChange = (e) => {
     if (e.target.files?.length > 0) {
       setFile(e.target.files[0]);
@@ -24,26 +33,34 @@ const StorachaPanel = ({
   };
 
   const handleFileUpload = async () => {
-    if (!file) return;
+    // if (!file) return;
 
+    // setUploadingFile(true);
+    // try {
+    //   await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    //   setUploadResult({
+    //     success: true,
+    //     cid: "bafybeihgllfc4...",
+    //   });
+    //   setFile(null);
+    // } catch (error) {
+    //   setUploadResult({
+    //     success: false,
+    //     error: error.message || "Upload failed",
+    //   });
+    // } finally {
+    //   setUploadingFile(false);
+    // }
     setUploadingFile(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      setUploadResult({
-        success: true,
-        cid: "bafybeihgllfc4...",
-      });
-      setFile(null);
-    } catch (error) {
-      setUploadResult({
-        success: false,
-        error: error.message || "Upload failed",
-      });
-    } finally {
-      setUploadingFile(false);
-    }
-  };
+    try{
+      apicall()
+  }catch(e){
+    console.log(e)
+  }finally{
+    setUploadingFile(false);
+  }
+};
 
   return (
     <AnimatePresence>
@@ -87,7 +104,7 @@ const StorachaPanel = ({
                     wallet-based encryption.
                   </p>
                   <button
-                    onClick={onSaveConversation}
+                    onClick={handleFileUpload}
                     disabled={isProcessing}
                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-zinc-600 disabled:cursor-not-allowed text-sm"
                   >

@@ -1,19 +1,19 @@
+"use client";
 import CryptoJS from "crypto-js";
-import { create } from "@web3-storage/w3up-client";
 
-const client = await create();
-const account = await client.login(`${holderemail}`);
+async function createClient(email) {
+  const client = await create();
+  if (email) {
+    await client.login(email);
+  }
+  return client;
+}
 
 function generateEncryptionKey(address) {
   if (!address || typeof address !== "string" || address.trim() === "") {
     throw new Error("Invalid address provided for encryption");
   }
-  const salt = process.env.NEXT_PUBLIC_ENCRYPTION_SALT;
-  if (!salt) {
-    console.warn(
-      "Warning: NEXT_PUBLIC_ENCRYPTION_SALT not configured properly"
-    );
-  }
+  const salt = process.env.NEXT_PUBLIC_ENCRYPTION_SALT || "default-salt";
   return CryptoJS.PBKDF2(address.toLowerCase(), salt, {
     keySize: 256 / 32,
     iterations: 10000,
@@ -31,9 +31,10 @@ function decryptData(encryptedData, address) {
   return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
 }
 
-export async function storeData(data, address, filename = "data.json") {
+export async function storeData(data, address, filename = "data.json", email) {
   try {
     const encryptedData = encryptData(data, address);
+    const client = await createClient(email);
 
     const blob = new Blob([encryptedData], { type: "application/json" });
     const file = new File([blob], filename);

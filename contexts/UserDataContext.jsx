@@ -1,4 +1,7 @@
 "use client";
+
+// Import and use the polyfill before any other imports
+
 import dynamic from "next/dynamic";
 const StorachaStorage = dynamic(() => import("../utils/storachastorage"), {
   ssr: false,
@@ -112,6 +115,8 @@ export function UserDataProvider({ children }) {
       setUploadedFiles([]);
     }
   }, [isConnected]);
+
+
 
   return (
     <UserDataContext.Provider
