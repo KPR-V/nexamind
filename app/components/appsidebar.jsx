@@ -7,10 +7,12 @@ import {
   ExternalLink,
   LogOut,
   ChevronLeft,
+  Bookmark
 } from "lucide-react";
 import Link from "next/link";
 import { useDisconnect } from "wagmi";
 import { useSidebar } from "./ui/SidebarContext";
+import axios from "axios";
 
 export default function AppSidebar({
   conversations = [],
@@ -24,6 +26,24 @@ export default function AppSidebar({
   const sidebarWidth = collapsed && !isMobile ? "w-16" : "w-72";
 
   const showLabels = !collapsed || isMobile;
+
+  
+
+  const handleChatUpload = async () => {
+     try{
+      const did2 = await axios.get("http://localhost:5000/getDID")
+      const chatdata = localStorage.getItem("chatMessages");
+      const parsedChatData = JSON.parse(chatdata);
+      const response  = await axios.post("http://localhost:5000/uploadfile",{
+        chatdata: parsedChatData,
+        did: did2.data
+      })
+      const data = await response.data;
+      console.log(data)
+     }catch(e){
+       console.log(e)
+     }
+  }
 
   return (
     <>
@@ -97,6 +117,17 @@ export default function AppSidebar({
                 <Plus size={18} className={showLabels ? "mr-2" : ""} />
                 {showLabels && "New Chat"}
               </button>
+            </div>
+
+            <div className="pt-2 pr-4 pl-4 pb-4">
+              <button 
+              onClick={async () => await handleChatUpload()}
+              className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 text-white py-2 rounded-md shadow flex items-center justify-center transition-colors ${
+                  collapsed && !isMobile ? "px-2" : "px-4"
+                }`}>
+                  <Bookmark size={18} className={showLabels ? "mr-2" : ""} />
+                  {showLabels && "Save Chat"}
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 no-scrollbar">

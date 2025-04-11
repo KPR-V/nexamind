@@ -23,8 +23,9 @@ const response  = await axios.post("http://localhost:5000/createstorachaclient",
 
   walletaddress: address
 })
-const data = await response.data;
-console.log(data)
+const did = await response.data;
+console.log(did)
+
 }
   const handleFileChange = (e) => {
     if (e.target.files?.length > 0) {
