@@ -15,6 +15,8 @@ const StorachaPanel = ({
   const [uploadResult, setUploadResult] = useState(null);
   const fileInputRef = useRef(null);
 
+
+
   const handleFileChange = (e) => {
     if (e.target.files?.length > 0) {
       setFile(e.target.files[0]);
@@ -60,16 +62,16 @@ const StorachaPanel = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", duration: 0.4 }}
-            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-full bg-gray-800 rounded-lg shadow-xl z-40 overflow-hidden"
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-full bg-zinc-800 rounded-lg shadow-xl z-40 overflow-hidden"
           >
             <div className="relative">
-              <div className="flex justify-between items-center border-b border-gray-700 p-4">
+              <div className="flex justify-between items-center border-b border-zinc-700 p-4">
                 <h3 className="text-lg font-medium text-white">
                   Storacha Storage
                 </h3>
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-300"
+                  className="text-zinc-400 hover:text-zinc-300"
                 >
                   <X size={20} />
                 </button>
@@ -80,20 +82,20 @@ const StorachaPanel = ({
                   <h4 className="font-medium mb-3 text-white">
                     Save Current Conversation
                   </h4>
-                  <p className="text-sm text-gray-400 mb-4">
+                  <p className="text-sm text-zinc-400 mb-4">
                     Store this conversation securely on Storacha with
                     wallet-based encryption.
                   </p>
                   <button
                     onClick={onSaveConversation}
-                    disabled={isProcessing || !hasMessages}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-sm"
+                    disabled={isProcessing}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-zinc-600 disabled:cursor-not-allowed text-sm"
                   >
-                    {isProcessing ? "Saving..." : "Save to Storacha"}
+                    {isProcessing ? "Creating..." : "Create Space"}
                   </button>
                 </div>
 
-                <div className="pt-4 border-t border-gray-700">
+                <div className="pt-4 border-t border-zinc-700">
                   <h4 className="font-medium mb-3 text-white">
                     Upload File to Storacha
                   </h4>
@@ -102,17 +104,17 @@ const StorachaPanel = ({
                     <div className="flex items-center justify-center w-full">
                       <label
                         htmlFor="file-upload"
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-700 border-gray-600"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-zinc-700 border-zinc-600"
                       >
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <FileUp size={24} className="mb-3 text-gray-400" />
-                          <p className="mb-2 text-sm text-gray-400">
+                          <FileUp size={24} className="mb-3 text-zinc-400" />
+                          <p className="mb-2 text-sm text-zinc-400">
                             <span className="font-semibold">
                               Click to upload
                             </span>{" "}
                             or drag and drop
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-zinc-400">
                             (Any file type)
                           </p>
                         </div>
@@ -128,19 +130,19 @@ const StorachaPanel = ({
                   </div>
 
                   {file && (
-                    <div className="p-3 bg-gray-700 rounded-md mb-4">
+                    <div className="p-3 bg-zinc-700 rounded-md mb-4">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium text-white truncate mr-2">
                           {file.name}
                         </p>
                         <button
-                          className="text-gray-400 hover:text-gray-300"
+                          className="text-zinc-400 hover:text-zinc-300"
                           onClick={() => setFile(null)}
                         >
                           <X size={16} />
                         </button>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-zinc-400 mt-1">
                         {(file.size / 1024).toFixed(2)} KB
                       </p>
                     </div>
@@ -149,7 +151,7 @@ const StorachaPanel = ({
                   <button
                     onClick={handleFileUpload}
                     disabled={!file || uploadingFile}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm flex items-center justify-center"
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-sm flex items-center justify-center"
                   >
                     {uploadingFile ? (
                       <>

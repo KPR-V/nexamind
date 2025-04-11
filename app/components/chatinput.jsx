@@ -106,7 +106,7 @@ const ChatInput = memo(
     };
 
     return (
-      <div className="bg-gray-900 z-20">
+      <div className="bg-zinc-900 z-20">
         {suggestions.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {suggestions.map((suggestion, index) => (
@@ -116,7 +116,7 @@ const ChatInput = memo(
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full text-gray-300 transition-colors shadow-sm"
+                className="text-sm bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-full text-zinc-300 transition-colors shadow-sm"
               >
                 {suggestion}
               </motion.button>
@@ -126,9 +126,9 @@ const ChatInput = memo(
 
         <form
           onSubmit={handleSubmit}
-          className="flex items-end bg-gray-900 rounded-md"
+          className="flex items-center bg-zinc-900 rounded-md" // Changed from 'items-end' to 'items-center'
         >
-          <div className="relative flex-1">
+          <div className="relative flex-1 flex items-center"> {/* Added flex and items-center */}
             <textarea
               ref={inputRef}
               value={localMessage}
@@ -139,18 +139,18 @@ const ChatInput = memo(
                   ? "Describe the image you want to generate..."
                   : "Type a message or ask me anything..."
               }
-              rows={
-                localMessage.split("\n").length > 2
-                  ? localMessage.split("\n").length
-                  : 1
-              }
-              className={`w-full bg-gray-800 text-gray-200 border-gray-700 rounded-tl-md rounded-bl-md p-3 pr-10 resize-none transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                isFocused ? "border-blue-500" : "border-gray-700"
+              rows={1} // Fixed to 1 row initially
+              className={`w-full bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-tl-md rounded-bl-md p-3 pr-10 resize-none transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                isFocused ? "border-blue-500" : "border-zinc-700"
               }`}
               disabled={isProcessing}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              style={{ minHeight: "44px", maxHeight: "200px" }}
+              style={{ 
+                minHeight: "44px",
+                maxHeight: "100px", // Reduced max height
+                overflow: "auto" // Add scrolling for longer content
+              }}
             />
 
             {!isImageMode && (
@@ -158,7 +158,7 @@ const ChatInput = memo(
                 type="button"
                 onClick={() => fileInputRef.current.click()}
                 disabled={isProcessing}
-                className="absolute right-2 bottom-2 text-gray-400 hover:text-gray-300 p-1 rounded-full transition-colors"
+                className="absolute right-2 bottom-2 text-zinc-400 hover:text-zinc-300 p-1 rounded-full transition-colors"
                 title="Upload image"
               >
                 <svg
@@ -191,15 +191,16 @@ const ChatInput = memo(
             type="submit"
             disabled={isProcessing || !localMessage.trim()}
             whileTap={{ scale: 0.95 }}
-            className={`rounded-tr-md rounded-br-md h-full p-3 text-white transition-colors flex items-center justify-center min-w-[60px] ${
+            className={`rounded-tr-md rounded-br-md h-[50px] p-3 text-white transition-colors flex items-center justify-center min-w-[60px] ${
               isProcessing
-                ? "bg-gray-600"
+                ? "bg-zinc-600"
                 : localMessage.trim()
                 ? isImageMode
                   ? "bg-purple-600 hover:bg-purple-700"
                   : "bg-blue-600 hover:bg-blue-700"
-                : "bg-gray-700 cursor-not-allowed"
+                : "bg-zinc-700 cursor-not-allowed"
             }`}
+            style={{ alignSelf: "stretch" }} // Make sure button stretches to match container height
           >
             {isProcessing ? (
               <svg

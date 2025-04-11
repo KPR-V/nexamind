@@ -11,12 +11,12 @@ export default function DashboardPage() {
 
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
-          <h1 className="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-zinc-50 dark:bg-zinc-900">
+        <div className="max-w-md w-full bg-white dark:bg-zinc-800 p-8 rounded-lg shadow-md">
+          <h1 className="text-2xl font-bold text-center mb-6 text-zinc-900 dark:text-white">
             Connect Your Wallet
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-8 text-center">
+          <p className="text-zinc-600 dark:text-zinc-300 mb-8 text-center">
             Connect your wallet to access your stored conversations, images, and
             files on Storacha.
           </p>
@@ -29,19 +29,19 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 bg-gray-50 dark:bg-gray-900 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+    <div className="container mx-auto p-4 bg-zinc-50 dark:bg-zinc-900 min-h-screen">
+      <h1 className="text-3xl font-bold mb-6 text-zinc-900 dark:text-white">
         Your Storacha Storage
       </h1>
 
       <div className="mb-6">
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <div className="flex border-b border-zinc-200 dark:border-zinc-700">
           <button
             onClick={() => setActiveTab("conversations")}
             className={`py-2 px-4 ${
               activeTab === "conversations"
                 ? "border-b-2 border-blue-500 text-blue-600 dark:text-blue-400"
-                : "text-gray-500 dark:text-gray-400"
+                : "text-zinc-500 dark:text-zinc-400"
             }`}
           >
             Conversations
@@ -51,7 +51,7 @@ export default function DashboardPage() {
             className={`py-2 px-4 ${
               activeTab === "images"
                 ? "border-b-2 border-blue-500 text-blue-600 dark:text-blue-400"
-                : "text-gray-500 dark:text-gray-400"
+                : "text-zinc-500 dark:text-zinc-400"
             }`}
           >
             Generated Images
@@ -61,7 +61,7 @@ export default function DashboardPage() {
             className={`py-2 px-4 ${
               activeTab === "files"
                 ? "border-b-2 border-blue-500 text-blue-600 dark:text-blue-400"
-                : "text-gray-500 dark:text-gray-400"
+                : "text-zinc-500 dark:text-zinc-400"
             }`}
           >
             Uploaded Files
@@ -72,23 +72,23 @@ export default function DashboardPage() {
       {activeTab === "conversations" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {conversations.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 col-span-full">
+            <p className="text-zinc-500 dark:text-zinc-400 col-span-full">
               No conversations saved yet.
             </p>
           ) : (
             conversations.map((convo) => (
               <div
                 key={convo.id}
-                className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow"
+                className="bg-white dark:bg-zinc-800 p-4 rounded-lg shadow"
               >
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {new Date(convo.timestamp).toLocaleString()}
                 </p>
-                <div className="mt-2 text-gray-800 dark:text-gray-200 line-clamp-3">
+                <div className="mt-2 text-zinc-800 dark:text-zinc-200 line-clamp-3">
                   {convo.messages[0]?.text || "No content"}
                 </div>
                 <div className="mt-3 flex justify-between items-center">
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-zinc-500">
                     CID: {convo.id.substring(0, 10)}...
                   </span>
                   <a
@@ -109,24 +109,24 @@ export default function DashboardPage() {
       {activeTab === "images" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {generatedImages.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 col-span-full">
+            <p className="text-zinc-500 dark:text-zinc-400 col-span-full">
               No images saved yet.
             </p>
           ) : (
             generatedImages.map((img) => (
               <div
                 key={img.id}
-                className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow"
+                className="bg-white dark:bg-zinc-800 p-4 rounded-lg shadow"
               >
                 <img
                   src={img.url}
                   alt={img.prompt}
                   className="w-full h-48 object-cover rounded-md"
                 />
-                <p className="mt-2 text-sm text-gray-800 dark:text-gray-200 line-clamp-2">
+                <p className="mt-2 text-sm text-zinc-800 dark:text-zinc-200 line-clamp-2">
                   {img.prompt}
                 </p>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-zinc-500 mt-2">
                   {new Date(img.timestamp).toLocaleString()}
                 </p>
               </div>
@@ -138,18 +138,18 @@ export default function DashboardPage() {
       {activeTab === "files" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {uploadedFiles.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 col-span-full">
+            <p className="text-zinc-500 dark:text-zinc-400 col-span-full">
               No files uploaded yet.
             </p>
           ) : (
             uploadedFiles.map((file) => (
               <div
                 key={file.id}
-                className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow"
+                className="bg-white dark:bg-zinc-800 p-4 rounded-lg shadow"
               >
                 <div className="flex items-center">
                   <svg
-                    className="w-8 h-8 text-gray-400 mr-3"
+                    className="w-8 h-8 text-zinc-400 mr-3"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -162,16 +162,16 @@ export default function DashboardPage() {
                     />
                   </svg>
                   <div>
-                    <p className="text-gray-800 dark:text-gray-200 font-medium">
+                    <p className="text-zinc-800 dark:text-zinc-200 font-medium">
                       {file.name}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-zinc-500">
                       {formatFileSize(file.size)}
                     </p>
                   </div>
                 </div>
                 <div className="mt-3 flex justify-between items-center">
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-zinc-500">
                     {new Date(file.timestamp).toLocaleString()}
                   </span>
                   <a

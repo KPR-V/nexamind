@@ -54,9 +54,9 @@ export default function AppSidebar({
             animate={{ x: 0 }}
             exit={{ x: isMobile ? -288 : collapsed ? -64 : -288 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className={`fixed left-0 top-0 h-screen ${sidebarWidth} bg-gray-900 text-white border-r border-gray-800 shadow-xl z-40 flex flex-col transition-all duration-300`}
+            className={`fixed left-0 top-0 h-screen ${sidebarWidth} bg-zinc-900 text-white border-r border-zinc-800 shadow-xl z-40 flex flex-col transition-all duration-300`}
           >
-            <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
               {showLabels ? (
                 <span className="font-semibold text-white">NexaMind</span>
               ) : (
@@ -66,7 +66,7 @@ export default function AppSidebar({
               {!isMobile ? (
                 <button
                   onClick={toggleSidebar}
-                  className="rounded-full bg-gray-800 hover:bg-gray-700 p-2 text-gray-300 hover:text-white"
+                  className="rounded-full bg-zinc-800 hover:bg-zinc-700 p-2 text-zinc-300 hover:text-white"
                   title="Toggle Sidebar"
                 >
                   <PanelLeft
@@ -77,7 +77,7 @@ export default function AppSidebar({
               ) : (
                 <button
                   onClick={() => setMobileOpen(false)}
-                  className="text-gray-400 hover:text-white"
+                  className="text-zinc-400 hover:text-white"
                 >
                   <ChevronLeft size={20} />
                 </button>
@@ -101,7 +101,7 @@ export default function AppSidebar({
 
             <div className="flex-1 overflow-y-auto p-2 no-scrollbar">
               {showLabels && (
-                <h3 className="text-xs uppercase font-semibold text-gray-400 px-2 mb-2">
+                <h3 className="text-xs uppercase font-semibold text-zinc-400 px-2 mb-2">
                   Recent Conversations
                 </h3>
               )}
@@ -130,7 +130,7 @@ export default function AppSidebar({
                             onSelectConversation?.(convo);
                             if (isMobile) setMobileOpen(false);
                           }}
-                          className={`w-full text-left rounded-md hover:bg-gray-800 transition-colors flex ${
+                          className={`w-full text-left rounded-md hover:bg-zinc-800 transition-colors flex ${
                             collapsed && !isMobile
                               ? "p-2 justify-center"
                               : "p-3 flex-col"
@@ -144,7 +144,7 @@ export default function AppSidebar({
                               <span className="font-medium text-white">
                                 {displayTitle}
                               </span>
-                              <span className="text-xs text-gray-400 mt-1">
+                              <span className="text-xs text-zinc-400 mt-1">
                                 {formattedDate}
                               </span>
                             </>
@@ -156,7 +156,7 @@ export default function AppSidebar({
                 </ul>
               ) : (
                 <div
-                  className={`text-center py-8 text-gray-500 ${
+                  className={`text-center py-8 text-zinc-500 ${
                     collapsed && !isMobile ? "p-2" : ""
                   }`}
                 >
@@ -175,10 +175,10 @@ export default function AppSidebar({
               )}
             </div>
 
-            <div className="border-t border-gray-800 p-4">
+            <div className="border-t border-zinc-800 p-4">
               <Link
                 href="/dashboard"
-                className={`flex items-center text-gray-300 hover:text-white p-2 w-full rounded-md hover:bg-gray-800 transition-colors ${
+                className={`flex items-center text-zinc-300 hover:text-white p-2 w-full rounded-md hover:bg-zinc-800 transition-colors ${
                   collapsed && !isMobile ? "justify-center" : ""
                 }`}
                 onClick={() => {
@@ -189,7 +189,7 @@ export default function AppSidebar({
                 {showLabels && "Dashboard"}
               </Link>
               <button
-                className={`flex items-center text-gray-300 hover:text-white p-2 w-full rounded-md hover:bg-gray-800 transition-colors ${
+                className={`flex items-center text-zinc-300 hover:text-white p-2 w-full rounded-md hover:bg-zinc-800 transition-colors ${
                   collapsed && !isMobile ? "justify-center" : ""
                 }`}
                 onClick={() => {

@@ -58,7 +58,7 @@ const Navbar = ({
   }, []);
 
   return (
-    <div className="border-b border-gray-800 p-3 flex items-center justify-between bg-gray-900 sticky top-0 z-10">
+    <div className="border-b border-zinc-800 p-3 flex items-center justify-between bg-zinc-900 sticky top-0 z-10">
       <div
         className={`flex items-center ${
           !isMobile && collapsed ? "ml-20" : "ml-14 lg:ml-0"
@@ -70,7 +70,7 @@ const Navbar = ({
         <div className="flex items-center space-x-4 sm:space-x-12">
           <div>
             <h1 className="text-xl font-bold text-white">Nexamind Chat</h1>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-zinc-400">
               {isImageMode ? "Image Generation Mode" : "Text Chat Mode"}
             </p>
           </div>
@@ -81,7 +81,7 @@ const Navbar = ({
               className={`flex items-center px-2 py-1.5 rounded-md transition-colors ${
                 enableTools
                   ? "bg-green-900/30 text-green-400"
-                  : "bg-gray-800 text-gray-400"
+                  : "bg-zinc-800 text-zinc-400"
               }`}
             >
               <Terminal size={16} className="mr-1" />
@@ -92,13 +92,13 @@ const Navbar = ({
       </div>
 
       <div className="flex items-center space-x-2">
-        <div className="flex items-center space-x-1 bg-gray-800 p-1 rounded-lg">
+        <div className="flex items-center space-x-1 bg-zinc-800 p-1 rounded-lg">
           <button
             onClick={() => setIsImageMode(false)}
             className={`text-xs sm:text-sm px-2 py-1 rounded ${
               !isImageMode
-                ? "bg-gray-700 text-blue-400 shadow-sm"
-                : "text-gray-400"
+                ? "bg-zinc-700 text-blue-400 shadow-sm"
+                : "text-zinc-400"
             } flex items-center`}
           >
             <MessageSquare size={16} className="mr-1 sm:mr-2" />
@@ -108,8 +108,8 @@ const Navbar = ({
             onClick={() => setIsImageMode(true)}
             className={`text-xs sm:text-sm px-2 py-1 rounded ${
               isImageMode
-                ? "bg-gray-700 text-purple-400 shadow-sm"
-                : "text-gray-400"
+                ? "bg-zinc-700 text-purple-400 shadow-sm"
+                : "text-zinc-400"
             } flex items-center`}
           >
             <Image size={16} className="mr-1 sm:mr-2" />
@@ -119,7 +119,7 @@ const Navbar = ({
 
         <button
           onClick={toggleModelDialog}
-          className="flex items-center text-xs bg-gray-800 hover:bg-gray-700 px-2 sm:px-3 py-1.5 rounded-md text-gray-300 transition-colors"
+          className="flex items-center text-xs bg-zinc-800 hover:bg-zinc-700 px-2 sm:px-3 py-1.5 rounded-md text-zinc-300 transition-colors"
         >
           <span className="hidden sm:inline mr-1">Model:</span>
           <span className="font-semibold truncate max-w-[60px] sm:max-w-[80px]">
@@ -130,20 +130,20 @@ const Navbar = ({
         <div className="relative sm:hidden" ref={moreOptionsRef}>
           <button
             onClick={() => setMoreOptionsVisible(!moreOptionsVisible)}
-            className="text-gray-400 hover:text-gray-300 p-2 rounded-full"
+            className="text-zinc-400 hover:text-zinc-300 p-2 rounded-full"
           >
             <MoreVertical size={20} />
           </button>
 
           {moreOptionsVisible && (
-            <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-lg border border-gray-700 z-20">
+            <div className="absolute right-0 mt-2 w-56 bg-zinc-800 rounded-md shadow-lg border border-zinc-700 z-20">
               <div className="py-1">
                 <button
                   onClick={() => {
                     toggleModelDialog();
                     setMoreOptionsVisible(false);
                   }}
-                  className="w-full text-left px-4 py-2 text-sm flex items-center text-gray-300 hover:bg-gray-700"
+                  className="w-full text-left px-4 py-2 text-sm flex items-center text-zinc-300 hover:bg-zinc-700"
                 >
                   <Settings size={16} className="mr-2" />
                   Change Model
@@ -155,21 +155,21 @@ const Navbar = ({
                       setShowStorachaPanel(!showStorachaPanel);
                       setMoreOptionsVisible(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm flex items-center text-gray-300 hover:bg-gray-700"
+                    className="w-full text-left px-4 py-2 text-sm flex items-center text-zinc-300 hover:bg-zinc-700"
                   >
                     <Database size={16} className="mr-2" />
                     Storacha Storage
                   </button>
                 )}
 
-                <div className="border-t border-gray-700 my-1"></div>
+                <div className="border-t border-zinc-700 my-1"></div>
 
                 <button
                   onClick={() => {
                     clearConversation();
                     setMoreOptionsVisible(false);
                   }}
-                  className="w-full text-left px-4 py-2 text-sm flex items-center text-gray-300 hover:bg-gray-700"
+                  className="w-full text-left px-4 py-2 text-sm flex items-center text-zinc-300 hover:bg-zinc-700"
                 >
                   <Trash2 size={16} className="mr-2" />
                   Clear conversation
@@ -180,7 +180,7 @@ const Navbar = ({
                     downloadConversation();
                     setMoreOptionsVisible(false);
                   }}
-                  className="w-full text-left px-4 py-2 text-sm flex items-center text-gray-300 hover:bg-gray-700"
+                  className="w-full text-left px-4 py-2 text-sm flex items-center text-zinc-300 hover:bg-zinc-700"
                 >
                   <Download size={16} className="mr-2" />
                   Download chat
@@ -196,7 +196,7 @@ const Navbar = ({
             className={`hidden sm:flex text-xs px-2 py-1.5 rounded-md transition-colors ${
               showStorachaPanel
                 ? "bg-teal-900/30 text-teal-400"
-                : "bg-gray-800 text-gray-400"
+                : "bg-zinc-800 text-zinc-400"
             }`}
           >
             <Database size={16} className="mr-1 sm:mr-2" />
@@ -218,20 +218,20 @@ const Navbar = ({
         <div className="relative hidden sm:block" ref={menuRef}>
           <button
             onClick={() => setMenuVisible(!menuVisible)}
-            className="text-gray-400 hover:text-gray-300 p-2 rounded-full"
+            className="text-zinc-400 hover:text-zinc-300 p-2 rounded-full"
           >
             <MoreVertical size={20} />
           </button>
 
           {menuVisible && (
-            <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-lg border border-gray-700 z-20">
+            <div className="absolute right-0 mt-2 w-56 bg-zinc-800 rounded-md shadow-lg border border-zinc-700 z-20">
               <div className="py-1">
                 <button
                   onClick={() => {
                     clearConversation();
                     setMenuVisible(false);
                   }}
-                  className="w-full text-left px-4 py-2 text-sm flex items-center text-gray-300 hover:bg-gray-700"
+                  className="w-full text-left px-4 py-2 text-sm flex items-center text-zinc-300 hover:bg-zinc-700"
                 >
                   <Trash2 size={16} className="mr-2" />
                   Clear conversation
@@ -241,7 +241,7 @@ const Navbar = ({
                     downloadConversation();
                     setMenuVisible(false);
                   }}
-                  className="w-full text-left px-4 py-2 text-sm flex items-center text-gray-300 hover:bg-gray-700"
+                  className="w-full text-left px-4 py-2 text-sm flex items-center text-zinc-300 hover:bg-zinc-700"
                 >
                   <Download size={16} className="mr-2" />
                   Download chat
@@ -249,7 +249,7 @@ const Navbar = ({
                 {isConnected && (
                   <Link
                     href="/dashboard"
-                    className=" w-full text-left px-4 py-2 text-sm flex items-center text-gray-300 hover:bg-gray-700"
+                    className=" w-full text-left px-4 py-2 text-sm flex items-center text-zinc-300 hover:bg-zinc-700"
                     onClick={() => setMenuVisible(false)}
                   >
                     <Settings size={16} className="mr-2" />

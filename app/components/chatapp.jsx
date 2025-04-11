@@ -603,7 +603,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         collapsed={collapsed}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden bg-gray-900">
+      <div className="flex-1 flex flex-col overflow-hidden bg-zinc-900">
         <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-4 relative">
           {/* StorachaPanel as modal */}
           <StorachaPanel
@@ -710,7 +710,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
                           key={idx}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
-                          className="text-left p-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
+                          className="text-left p-3 bg-zinc-800 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition-colors shadow-sm"
                           onClick={() => handleSendMessage(prompt)}
                         >
                           {prompt}
@@ -732,7 +732,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
             )}
           </div>
 
-          <div className="sticky bottom-0 left-0 right-0 z-10 bg-gray-900 pt-4 pb-2 border-t border-gray-800">
+          <div className="sticky bottom-0 left-0 right-0 z-10 bg-zinc-900 pt-4 pb-2 border-t border-zinc-800">
             <ChatInput
               onSend={handleSendMessage}
               onImageUpload={handleImageUpload}
@@ -758,7 +758,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-gray-800 rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-y-auto"
+            className="bg-zinc-800 rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-y-auto"
           >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-white">Select Models</h2>

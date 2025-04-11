@@ -46,7 +46,7 @@ export default function Page() {
 
   return (
     <SidebarProvider defaultCollapsed={false}>
-      <main className="bg-gray-900 h-screen overflow-hidden">
+      <main className="bg-zinc-900 h-screen overflow-hidden">
         <AppSidebar
           conversations={conversations}
           onSelectConversation={handleSelectConversation}
