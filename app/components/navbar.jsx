@@ -1,4 +1,3 @@
-// components/Navbar.jsx
 "use client";
 import React, { useState, useRef, useEffect } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
@@ -30,6 +29,8 @@ const Navbar = ({
   clearConversation,
   downloadConversation,
   collapsed,
+  enableWebSearchForNonToolModels,
+  toggleWebSearchForNonToolModels,
 }) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
@@ -37,7 +38,7 @@ const Navbar = ({
   const moreOptionsRef = useRef(null);
   const { isMobile } = useSidebar();
 
-  // Close menus when clicking outside
+ 
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -88,6 +89,19 @@ const Navbar = ({
               <span className="text-xs hidden sm:inline">Tools</span>
             </button>
           )}
+          {!isModelToolCapable(selectedModel) && (
+          <button
+            onClick={toggleWebSearchForNonToolModels}
+            className={`flex items-center px-2 py-1.5 rounded-md transition-colors ${
+              enableWebSearchForNonToolModels
+                ? "bg-green-900/30 text-green-400"
+                : "bg-zinc-800 text-zinc-400"
+            }`}
+          >
+            <Terminal size={16} className="mr-1" />
+            <span className="text-xs hidden sm:inline">Web Search</span>
+          </button>
+        )}
         </div>
       </div>
 

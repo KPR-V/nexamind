@@ -65,49 +65,56 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
   const { isConnected, address, saveConversation, saveGeneratedImage } =
     useUserData();
   const { collapsed, isMobile } = useSidebar();
-
-  // Load preferences from localStorage
+  const [enableWebSearchForNonToolModels, setEnableWebSearchForNonToolModels] = useState(false);
+ 
   useEffect(() => {
     try {
-      // Check for saved messages
+    
       const savedMessages = localStorage.getItem("chatMessages");
       if (savedMessages) {
         const parsedMessages = JSON.parse(savedMessages);
         setMessages(parsedMessages);
       }
 
-      // Check for saved model preference
+ 
       const savedModel = localStorage.getItem("selectedModel");
       if (savedModel) {
         setSelectedModel(savedModel);
       }
 
-      // Always use dark mode
+   
       document.documentElement.classList.add("dark");
 
-      // Check for saved image mode
+
       const savedImageMode = localStorage.getItem("imageMode");
       if (savedImageMode) {
         setIsImageMode(savedImageMode === "true");
       }
 
-      // Check for saved tools preference
+   
       const savedToolsEnabled = localStorage.getItem("enableTools");
       if (savedToolsEnabled !== null) {
         setEnableTools(savedToolsEnabled === "true");
       }
+ 
+    const savedWebSearchForNonToolModels = localStorage.getItem("enableWebSearchForNonToolModels");
+    if (savedWebSearchForNonToolModels !== null) {
+      setEnableWebSearchForNonToolModels(savedWebSearchForNonToolModels === "true");
+    }
     } catch (e) {
       console.error("Error loading preferences:", e);
     }
   }, []);
+  useEffect(() => {
+    localStorage.setItem("enableWebSearchForNonToolModels", enableWebSearchForNonToolModels.toString());
+  }, [enableWebSearchForNonToolModels]);
 
-  // Save messages to localStorage when they change
   useEffect(() => {
     if (messages.length > 0) {
       try {
         localStorage.setItem("chatMessages", JSON.stringify(messages));
 
-        // Update conversation context reference
+     
         conversationRef.current = messages.map((msg) => ({
           role: msg.sender === "user" ? "user" : "assistant",
           content: msg.text,
@@ -121,7 +128,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
   useEffect(() => {
     if (initialConversation && initialConversation.messages) {
       setMessages(initialConversation.messages);
-      // Update conversation context reference
+   
       conversationRef.current = initialConversation.messages.map((msg) => ({
         role: msg.sender === "user" ? "user" : "assistant",
         content: msg.text,
@@ -129,29 +136,29 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
     }
   }, [initialConversation]);
 
-  // Save image mode preference
+
   useEffect(() => {
     localStorage.setItem("imageMode", isImageMode.toString());
   }, [isImageMode]);
 
-  // Save tools preference
+
   useEffect(() => {
     localStorage.setItem("enableTools", enableTools.toString());
   }, [enableTools]);
 
-  // Save model preference
+
   useEffect(() => {
     if (selectedModel) {
       localStorage.setItem("selectedModel", selectedModel);
     }
   }, [selectedModel]);
 
-  // Scroll to bottom when messages change
+ 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch available models on component mount
+
   useEffect(() => {
     fetchModels();
     fetchImageModels();
@@ -182,7 +189,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
       }
     } catch (error) {
       console.error("❌ Error fetching image models:", error);
-      // Non-blocking error since image generation is optional
+  
     }
   };
 
@@ -198,7 +205,9 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
   const toggleModelDialog = () => {
     setShowModelDialog((prev) => !prev);
   };
-
+  const toggleWebSearchForNonToolModels = () => {
+    setEnableWebSearchForNonToolModels(prev => !prev);
+  };
   const toggleImageMode = () => {
     setIsImageMode((prev) => !prev);
   };
@@ -239,7 +248,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
       document.body.appendChild(a);
       a.click();
 
-      // Cleanup
+   
       setTimeout(() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
@@ -309,7 +318,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
     try {
       const reader = new FileReader();
       reader.onload = async (e) => {
-        // Create a user message with the image
+   
         const userMessage = {
           id: `user-${Date.now()}`,
           text: "I've uploaded an image for reference.",
@@ -320,7 +329,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
 
         setMessages((prev) => [...prev, userMessage]);
 
-        // Make API call for image-based generation
+      
         const promptMessage = "Analyzing the uploaded image...";
         await handleTextResponse(promptMessage, e.target.result);
       };
@@ -359,7 +368,6 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
     try {
       setIsProcessing(true);
 
-      // Add a placeholder message for the image generation
       const tempId = `bot-img-${Date.now()}`;
       setMessages((prev) => [
         ...prev,
@@ -372,7 +380,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         },
       ]);
 
-      // Call the image generation API
+
       const response = await axios.post(
         "/api/image/generate",
         {
@@ -384,12 +392,12 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         }
       );
 
-      // Convert binary data to base64
+   
       const base64Image = `data:image/png;base64,${Buffer.from(
         response.data
       ).toString("base64")}`;
 
-      // Update the message with the generated image
+    
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === tempId
@@ -404,11 +412,11 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
       );
 
       if (isConnected && address) {
-        // Convert base64 to blob
+    
         const fetchResponse = await fetch(base64Image);
         const imageBlob = await fetchResponse.blob();
 
-        // Save to Storacha in background
+     
         saveGeneratedImage(imageBlob, prompt)
           .then((result) => {
             console.log("Image saved to Storacha:", result.cid);
@@ -420,7 +428,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
     } catch (error) {
       console.error("❌ Error generating image:", error);
 
-      // Update the placeholder message with the error
+   
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === tempId
@@ -461,7 +469,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
     setIsProcessing(true);
     setError(null);
 
-    // Add a typing indicator
+   
     const typingMessageId = `bot-${Date.now()}`;
     setMessages((prev) => [
       ...prev,
@@ -475,7 +483,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
     ]);
 
     try {
-      // Check if model supports tools
+    
       const modelSupportsTools = toolSupportedModels.includes(selectedModel);
       const useTools = modelSupportsTools && enableTools;
       const requestConfig = {
@@ -483,24 +491,25 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         maxRetries: 3,
         retryDelay: 3000,
       };
-      // Prepare conversation history for context
+   
       const response = await apiClient.post(
         "/api/chatlilypad",
         {
           model: selectedModel,
           message: currentMessage,
           conversation: conversationRef.current,
-          imageData: imageData, // Pass image data if available
-          enableTools: useTools, // Only enable tools if supported and enabled
+          imageData: imageData, 
+          enableTools: useTools, 
+          enableWebSearchForNonToolModels: enableWebSearchForNonToolModels, 
         },
         requestConfig
       );
 
-      // If the response has a content property, it's the new JSON format with tool info
+     
       if (response.data.content) {
         const { content, toolsUsed } = response.data;
 
-        // Store which tools were used for this message
+  
         const newMessageId = `bot-${Date.now()}`;
         if (toolsUsed && toolsUsed.length > 0) {
           setMessageTools((prev) => ({
@@ -509,7 +518,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
           }));
         }
 
-        // Update the typing message with the actual response
+      
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === typingMessageId
@@ -525,10 +534,10 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
           )
         );
       } else {
-        // Handle legacy format for backward compatibility
+      
         const fullText = response.data;
 
-        // Update the typing message with the actual response
+       
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === typingMessageId
@@ -546,7 +555,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
     } catch (error) {
       console.error("❌ Error getting response:", error);
 
-      // Update with error message
+  
       setMessages((prev) => {
         const errorMessage =
           error.response?.data?.error ||
@@ -601,11 +610,13 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         clearConversation={clearConversation}
         downloadConversation={downloadConversation}
         collapsed={collapsed}
+        enableWebSearchForNonToolModels={enableWebSearchForNonToolModels}
+        toggleWebSearchForNonToolModels={toggleWebSearchForNonToolModels}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden bg-zinc-900">
         <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-4 relative">
-          {/* StorachaPanel as modal */}
+        
           <StorachaPanel
             isOpen={showStorachaPanel}
             onClose={() => setShowStorachaPanel(false)}
@@ -752,7 +763,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         </div>
       </div>
 
-      {/* Model Selection Dialog */}
+   
       {showModelDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
           <motion.div

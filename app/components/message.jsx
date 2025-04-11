@@ -10,39 +10,80 @@ const Message = memo(({ message, toolsUsed = [] }) => {
   const [visibleText, setVisibleText] = useState("");
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-
+  const [hasThinkBlock, setHasThinkBlock] = useState(false);
+  const [isThinkingVisible, setIsThinkingVisible] = useState(false);
   const formatText = (text) => {
     if (!text) return "";
-    let escaped = text
+    
+  
+    const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+    const thinkMatches = [];
+    let thinkMatch;
+    let processedText = text;
+    
+   
+    while ((thinkMatch = thinkRegex.exec(text)) !== null) {
+      const id = `THINK_BLOCK_${thinkMatches.length}`;
+      thinkMatches.push({
+        id,
+        content: thinkMatch[1].trim()
+      });
+      processedText = processedText.replace(thinkMatch[0], id);
+    }
+    
+  
+    const customTagRegex = /<(query|date|search_results)>([\s\S]*?)<\/\1>/g;
+    const customTagMatches = [];
+    let customTagMatch;
+    
+    while ((customTagMatch = customTagRegex.exec(text)) !== null) {
+      const id = `CUSTOM_TAG_${customTagMatches.length}`;
+      customTagMatches.push({
+        id,
+        tag: customTagMatch[1],
+        content: customTagMatch[2].trim()
+      });
+      processedText = processedText.replace(customTagMatch[0], id);
+    }
+    
+   
+    let escaped = processedText
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
+   
     escaped = escaped.replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
       '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline dark:text-blue-400">$1</a>'
     );
-    // Handle regular URLs that aren't already in markdown format
-    escaped = escaped.replace(/(https?:\/\/[^\s]+)/g, (url) => {
-      // Skip URLs that are already wrapped in <a> tags
+    
+   
+    const urlRegex = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi;
+    
+    escaped = escaped.replace(urlRegex, (url) => {
+     
       if (url.startsWith("&lt;a href=")) return url;
 
-      // Get human-readable URL for display
+     
+      const hrefUrl = url.startsWith('http') ? url : `https://${url}`;
+      
+   
       let displayUrl = url;
       try {
-        // Try to make URL more readable by removing protocol and truncating if too long
-        const urlObj = new URL(url);
+        const urlObj = new URL(hrefUrl);
         displayUrl = urlObj.host + urlObj.pathname;
         if (displayUrl.length > 30) {
           displayUrl = displayUrl.substring(0, 30) + "...";
         }
       } catch (e) {
-        // If URL parsing fails, use original
+     
       }
 
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline dark:text-blue-400">${displayUrl}</a>`;
+      return `<a href="${hrefUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline dark:text-blue-400">${displayUrl}</a>`;
     });
 
+  
     const lines = escaped.split("\n");
     let inTable = false;
     let tableContent = [];
@@ -81,19 +122,23 @@ const Message = memo(({ message, toolsUsed = [] }) => {
 
     escaped = processedLines.join("\n");
 
+   
     escaped = escaped.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     escaped = escaped.replace(/\*([^*]+)\*/g, "<em>$1</em>");
     escaped = escaped.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+    
+  
+    escaped = escaped.replace(
+      /``````/g, 
+      '<div class="bg-gray-100 dark:bg-gray-800 rounded-md p-4 my-4 overflow-x-auto"><pre><code class="language-$1">$2</code></pre></div>'
+    );
+    
+
     escaped = escaped.replace(
       /`([^`]+)`/g,
       '<code class="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-sm">$1</code>'
     );
 
-    escaped = escaped.replace(/``````/g, function (match, lang, code) {
-      return `<div class="bg-gray-100 dark:bg-gray-800 rounded-md p-4 my-4 overflow-x-auto"><pre><code class="language-${
-        lang || ""
-      }">${code}</code></pre></div>`;
-    });
 
     escaped = escaped.replace(
       /^###\s+(.+)$/gm,
@@ -108,6 +153,7 @@ const Message = memo(({ message, toolsUsed = [] }) => {
       '<h1 class="text-2xl font-bold my-4">$1</h1>'
     );
 
+  
     escaped = escaped.replace(/(\n\d+\.\s+.+)+/g, function (match) {
       const items = match
         .trim()
@@ -138,12 +184,56 @@ const Message = memo(({ message, toolsUsed = [] }) => {
       !escaped.startsWith("<div") &&
       !escaped.startsWith("<p")
     ) {
-      escaped = '<p class="my-2">' + escaped + "</p>";
+      // escaped = '<p class="my-1">' + escaped + "</p>";
     }
+    
+    
+    thinkMatches.forEach(match => {
+      const formattedThink = `
+      <div class="think-block my-1 p-3 bg-gray-50 dark:bg-gray-900 border-l-4 border-purple-400 dark:border-purple-600 rounded ${!isThinkingVisible ? 'hidden' : ''}">
+        <div class="text-sm text-purple-600 dark:text-purple-400 font-medium mb-1">Thinking Process:</div>
+        <div class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono text-sm">${match.content}</div>
+      </div>
+    `;
+      escaped = escaped.replace(match.id, formattedThink);
+    });
+    
+ 
+    customTagMatches.forEach(match => {
+      let formattedContent;
+      switch(match.tag) {
+        case 'query':
+          formattedContent = `
+            <div class="query-block my-1 p-3 bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-400 dark:border-blue-600 rounded">
+              <div class="text-sm text-blue-600 dark:text-blue-400 font-medium mb-1">Query:</div>
+              <div class="text-gray-700 dark:text-gray-300">${match.content}</div>
+            </div>
+          `;
+          break;
+        case 'date':
+          formattedContent = `
+            <div class="date-block my-1 text-sm text-gray-500 dark:text-gray-400 italic">
+              ${match.content}
+            </div>
+          `;
+          break;
+        case 'search_results':
+          formattedContent = `
+            <div class="search-results-block my-4 p-3 bg-green-50 dark:bg-green-900/30 border-l-4 border-green-400 dark:border-green-600 rounded">
+              <div class="text-sm text-green-600 dark:text-green-400 font-medium mb-1">Search Results:</div>
+              <div class="text-gray-700 dark:text-gray-300">${match.content}</div>
+            </div>
+          `;
+          break;
+        default:
+          formattedContent = match.content;
+      }
+      escaped = escaped.replace(match.id, formattedContent);
+    });
 
     return escaped;
   };
-
+  
   const processTableContent = (tableRows) => {
     let tableHTML =
       '<div class="overflow-x-auto my-4"><table class="min-w-full border-collapse border border-gray-300 dark:border-gray-700">';
@@ -174,6 +264,13 @@ const Message = memo(({ message, toolsUsed = [] }) => {
 
   useEffect(() => {
     setVisibleText(text);
+
+  
+    if (text && /<think>[\s\S]*?<\/think>/g.test(text)) {
+      setHasThinkBlock(true);
+    } else {
+      setHasThinkBlock(false);
+    }
   }, [text]);
 
   useEffect(() => {
@@ -199,8 +296,33 @@ const Message = memo(({ message, toolsUsed = [] }) => {
         isError
           ? "bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800"
           : ""
-      }`}
+      } ${hasThinkBlock ? "has-think-block" : ""}`}
     >
+     
+      {hasThinkBlock && (
+  <div className="think-block-controls mb-1 flex justify-start">
+    <button 
+      onClick={() => setIsThinkingVisible(!isThinkingVisible)}
+      className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded-full flex items-center hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors"
+    >
+      <svg
+        className="w-3 h-3 mr-1"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d={isThinkingVisible ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"}
+        />
+      </svg>
+      {isThinkingVisible ? "Hide" : "Show"} Thinking Process
+    </button>
+  </div>
+)}
+
       {isTyping && !text ? (
         <div className="typing-indicator">
           <span></span>
@@ -210,10 +332,9 @@ const Message = memo(({ message, toolsUsed = [] }) => {
       ) : (
         <>
           <div
-            className="whitespace-pre-wrap break-words text-formatting"
+            className="whitespace-pre-wrap break-words text-formatting mt-0 flex flex-col"
             dangerouslySetInnerHTML={{ __html: formatText(visibleText) }}
           />
-
           {imageUrl && (
             <div className={`mt-3 relative ${imageError ? "hidden" : ""}`}>
               {!imageLoaded && (
@@ -262,7 +383,7 @@ const Message = memo(({ message, toolsUsed = [] }) => {
 
           {toolsUsed && toolsUsed.length > 0 && isBot && (
             <div className="mt-2 flex flex-wrap gap-2">
-              {toolsUsed.includes("search_web") && (
+              {toolsUsed.includes("searchWeb") && (
                 <div className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full flex items-center">
                   <svg
                     className="w-3 h-3 mr-1"

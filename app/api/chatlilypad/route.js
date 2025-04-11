@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import axios from "axios";
 import dotenv from "dotenv";
 import { chatTools } from "../../../utils/tools";
-import { searchWeb } from "../../../utils/toolFunctions";
+import { searchWeb ,needsWebSearch,anuraWebSearch } from "../../../utils/toolFunctions";
 dotenv.config();
 
 const toolSupportedModels = [
@@ -22,6 +22,7 @@ export async function POST(request) {
       message,
       conversation = [],
       enableTools = true,
+      enableWebSearchForNonToolModels = false, // New parameter
     } = await request.json();
     // console.log(`📋 Processing request with model: ${model}`);
     // console.log(
@@ -33,6 +34,7 @@ export async function POST(request) {
     const modelSupportsTools = toolSupportedModels.includes(model);
     const useTools = modelSupportsTools && enableTools;
 
+ const useWebSearchForNonToolModels = !modelSupportsTools && enableWebSearchForNonToolModels;
     let messages = [];
 
     messages.push({
@@ -45,6 +47,33 @@ export async function POST(request) {
       messages = [...messages, ...conversation];
     }
 
+ let webSearchResults = null;
+ if (useWebSearchForNonToolModels) {
+ 
+   const shouldSearchWeb = needsWebSearch(message);
+   
+   if (shouldSearchWeb) {
+     try {
+     
+       webSearchResults = await anuraWebSearch(message, 10);
+       
+    
+       if (webSearchResults && !webSearchResults.error && webSearchResults.results.length > 0) {
+
+         const formattedResults = webSearchResults.results.map(result => 
+           `Title: ${result.title}\nURL: ${result.url}\nSummary: ${result.snippet}`
+         ).join('\n\n');
+         
+         messages.push({
+           role: "system",
+           content: `I found the following information that might help answer the query. Please use this information to provide an accurate response:\n\n${formattedResults}`
+         });
+       }
+     } catch (error) {
+       console.error("Error performing web search for non-tool model:", error);
+     }
+   }
+ }
     messages.push({ role: "user", content: message });
 
     const payload = {
@@ -127,6 +156,7 @@ export async function POST(request) {
         content: finalContent,
         toolsUsed: toolsUsed,
         fullConversation: messages,
+        
       });
     } else {
       //  console.timeEnd("Total response time");
@@ -134,6 +164,7 @@ export async function POST(request) {
         content: assistantMessage.content,
         toolsUsed: [],
         fullConversation: [...messages, assistantMessage],
+        webSearchUsed: webSearchResults !== null && !webSearchResults.error
       });
     }
   } catch (error) {
