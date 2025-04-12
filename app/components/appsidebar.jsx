@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   PanelLeft,
@@ -7,7 +7,10 @@ import {
   ExternalLink,
   LogOut,
   ChevronLeft,
-  Bookmark
+  Bookmark,
+  FileText,
+  RefreshCw,
+  Database
 } from "lucide-react";
 import Link from "next/link";
 import { useDisconnect } from "wagmi";
@@ -22,28 +25,161 @@ export default function AppSidebar({
   const { collapsed, mobileOpen, isMobile, toggleSidebar, setMobileOpen } =
     useSidebar();
   const { disconnect } = useDisconnect();
+  const [storedConversations, setStoredConversations] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
+  const [spaceName, setSpaceName] = useState("Loading...");
+  const [spaceId, setSpaceId] = useState("");
 
   const sidebarWidth = collapsed && !isMobile ? "w-16" : "w-72";
-
   const showLabels = !collapsed || isMobile;
 
-  
+  // Fetch space info and stored conversations on component mount
+  useEffect(() => {
+    fetchSpaceInfo();
+    fetchStoredConversations();
+  }, []);
 
+  // Fetch space information
+  const fetchSpaceInfo = async () => {
+    try {
+      const didResponse = await axios.get("http://localhost:5000/getDID");
+      const did = didResponse.data;
+      setSpaceId(did);
+      
+      // Extract space name from DID
+      if (did) {
+        // If DID has a format like did:key:zXXXXX or did:web:spacename, etc.
+        const parts = did.split(":");
+        if (parts.length >= 3) {
+          setSpaceName(parts[2].substring(0, 10) + "...");
+        } else {
+          setSpaceName(did.substring(0, 10) + "...");
+        }
+        
+        // Alternatively, if you have an endpoint that returns space info:
+        // const spaceInfoResponse = await axios.get("http://localhost:5000/getSpaceInfo", {
+        //   params: { did }
+        // });
+        // setSpaceName(spaceInfoResponse.data.name || "Unknown Space");
+      }
+    } catch (error) {
+      console.error("Error fetching space info:", error);
+      setSpaceName("Unknown Space");
+    }
+  };
+
+  // Fetch stored conversations from Storacha
+  const fetchStoredConversations = async () => {
+    setIsLoading(true);
+    try {
+      const didResponse = await axios.get("http://localhost:5000/getDID");
+      const did = didResponse.data;
+      setSpaceId(did);
+      
+      // Get the list of uploaded files
+      const response = await axios.get("http://localhost:5000/listUploads", {
+        params: { did }
+      });
+      
+      if (response.data && Array.isArray(response.data.uploads)) {
+        // Process each upload and fetch its content
+        const storedChats = await Promise.all(
+          response.data.uploads.map(async (upload) => {
+            try {
+              // Extract the CID string properly
+              const cidString = upload.root.toString();
+              
+              // Fetch the content of each upload
+              const contentResponse = await axios.get(`http://localhost:5000/getUpload`, {
+                params: { 
+                  cid: cidString,
+                  did
+                }
+              });
+              
+              // Parse the chat data
+              const chatData = contentResponse.data;
+              
+              return {
+                id: cidString,
+                messages: chatData,
+                timestamp: upload.uploaded || Date.now(),
+                isStoredChat: true,
+                title: getChatTitle(chatData)
+              };
+            } catch (error) {
+              console.error("Error fetching upload content:", error);
+              return null;
+            }
+          })
+        );
+        
+        // Filter out failed fetches and set stored conversations
+        setStoredConversations(storedChats.filter(chat => chat !== null));
+      }
+    } catch (error) {
+      console.error("Error fetching stored conversations:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to reload stored conversations
+  const reloadStoredConversations = async () => {
+    setIsReloading(true);
+    await fetchStoredConversations();
+    setIsReloading(false);
+  };
+
+  // Helper function to extract title from chat messages
+  const getChatTitle = (messages) => {
+    if (!messages || !Array.isArray(messages)) return "Saved Chat";
+    
+    const firstUserMessage = messages.find(m => m.sender === "user");
+    if (firstUserMessage && firstUserMessage.text) {
+      return firstUserMessage.text.length > 30
+        ? firstUserMessage.text.substring(0, 30) + "..."
+        : firstUserMessage.text;
+    }
+    
+    return "Saved Chat";
+  };
+
+  // Handle chat upload to Storacha
   const handleChatUpload = async () => {
-     try{
-      const did2 = await axios.get("http://localhost:5000/getDID")
+    try {
+      setIsLoading(true);
+      const didResponse = await axios.get("http://localhost:5000/getDID");
+      const did = didResponse.data;
+      
       const chatdata = localStorage.getItem("chatMessages");
+      if (!chatdata) {
+        console.error("No chat messages found in localStorage");
+        return;
+      }
+      
       const parsedChatData = JSON.parse(chatdata);
-      const response  = await axios.post("http://localhost:5000/uploadfile",{
+      
+      const response = await axios.post("http://localhost:5000/uploadFile", {
         chatdata: parsedChatData,
-        did: did2.data
-      })
-      const data = await response.data;
-      console.log(data)
-     }catch(e){
-       console.log(e)
-     }
-  }
+        did
+      });
+      
+      console.log("Upload successful:", response.data);
+      
+      // After successful upload, refresh the stored conversations
+      await fetchStoredConversations();
+      
+    } catch (e) {
+      console.error("Error uploading chat:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Combine regular conversations with stored conversations
+  const allConversations = [...conversations, ...storedConversations];
 
   return (
     <>
@@ -104,6 +240,19 @@ export default function AppSidebar({
               )}
             </div>
 
+            {/* Current Space Information */}
+            {showLabels && (
+              <div className="px-4 py-3 border-b border-zinc-800">
+                <div className="flex items-center text-zinc-400 text-xs">
+                  <Database size={12} className="mr-1" />
+                  <span>CURRENT SPACE</span>
+                </div>
+                <div className="mt-1 font-medium text-white truncate" title={spaceId}>
+                  {spaceName}
+                </div>
+              </div>
+            )}
+
             <div className="p-4">
               <button
                 onClick={() => {
@@ -113,6 +262,7 @@ export default function AppSidebar({
                 className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 text-white py-2 rounded-md shadow flex items-center justify-center transition-colors ${
                   collapsed && !isMobile ? "px-2" : "px-4"
                 }`}
+                disabled={isLoading}
               >
                 <Plus size={18} className={showLabels ? "mr-2" : ""} />
                 {showLabels && "New Chat"}
@@ -121,35 +271,56 @@ export default function AppSidebar({
 
             <div className="pt-2 pr-4 pl-4 pb-4">
               <button 
-              onClick={async () => await handleChatUpload()}
-              className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 text-white py-2 rounded-md shadow flex items-center justify-center transition-colors ${
+                onClick={handleChatUpload}
+                disabled={isLoading}
+                className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 text-white py-2 rounded-md shadow flex items-center justify-center transition-colors ${
                   collapsed && !isMobile ? "px-2" : "px-4"
                 }`}>
-                  <Bookmark size={18} className={showLabels ? "mr-2" : ""} />
-                  {showLabels && "Save Chat"}
-                </button>
+                <Bookmark size={18} className={showLabels ? "mr-2" : ""} />
+                {showLabels && (isLoading ? "Saving..." : "Save Chat")}
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 no-scrollbar">
               {showLabels && (
-                <h3 className="text-xs uppercase font-semibold text-zinc-400 px-2 mb-2">
-                  Recent Conversations
-                </h3>
+                <div className="flex items-center justify-between px-2 mb-2">
+                  <h3 className="text-xs uppercase font-semibold text-zinc-400">
+                    Recent Conversations
+                  </h3>
+                  <button 
+                    onClick={reloadStoredConversations}
+                    disabled={isReloading}
+                    className="text-zinc-400 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition-colors"
+                    title="Reload stored conversations"
+                  >
+                    <RefreshCw 
+                      size={14} 
+                      className={`transition-all duration-500 ${isReloading ? 'animate-spin' : ''}`}
+                    />
+                  </button>
+                </div>
               )}
 
-              {conversations && conversations.length > 0 ? (
+              {allConversations && allConversations.length > 0 ? (
                 <ul className="space-y-1">
-                  {conversations.map((convo, index) => {
-                    const firstMessage =
-                      convo.messages && convo.messages.length > 0
-                        ? convo.messages.find((m) => m.sender === "user")
-                            ?.text || "New Conversation"
-                        : "New Conversation";
+                  {allConversations.map((convo, index) => {
+                    const isStoredChat = convo.isStoredChat;
+                    
+                    let displayTitle;
+                    if (isStoredChat) {
+                      displayTitle = convo.title || "Saved Chat";
+                    } else {
+                      const firstMessage =
+                        convo.messages && convo.messages.length > 0
+                          ? convo.messages.find((m) => m.sender === "user")
+                              ?.text || "New Conversation"
+                          : "New Conversation";
 
-                    const displayTitle =
-                      firstMessage.length > 30
-                        ? firstMessage.substring(0, 30) + "..."
-                        : firstMessage;
+                      displayTitle =
+                        firstMessage.length > 30
+                          ? firstMessage.substring(0, 30) + "..."
+                          : firstMessage;
+                    }
 
                     const date = new Date(convo.timestamp || Date.now());
                     const formattedDate = date.toLocaleDateString();
@@ -169,12 +340,17 @@ export default function AppSidebar({
                           title={displayTitle}
                         >
                           {collapsed && !isMobile ? (
-                            <Plus size={16} />
+                            isStoredChat ? <FileText size={16} /> : <Plus size={16} />
                           ) : (
                             <>
-                              <span className="font-medium text-white">
-                                {displayTitle}
-                              </span>
+                              <div className="flex items-center">
+                                {isStoredChat && (
+                                  <FileText size={14} className="mr-2 text-blue-400" />
+                                )}
+                                <span className="font-medium text-white">
+                                  {displayTitle}
+                                </span>
+                              </div>
                               <span className="text-xs text-zinc-400 mt-1">
                                 {formattedDate}
                               </span>
@@ -191,7 +367,12 @@ export default function AppSidebar({
                     collapsed && !isMobile ? "p-2" : ""
                   }`}
                 >
-                  {showLabels ? (
+                  {isLoading || isReloading ? (
+                    <div className="flex flex-col items-center">
+                      <RefreshCw size={20} className="animate-spin mb-2" />
+                      <p className="text-zinc-400">Loading...</p>
+                    </div>
+                  ) : showLabels ? (
                     <>
                       <Plus size={24} className="mx-auto mb-3 opacity-50" />
                       <p>No conversations yet</p>

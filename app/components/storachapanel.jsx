@@ -19,8 +19,7 @@ const StorachaPanel = ({
 
 
 const apicall= async ()=>{
-const response  = await axios.post("http://localhost:5000/createstorachaclient",{
-
+const response  = await axios.post("http://localhost:5000/createstorachaspace",{
   walletaddress: address
 })
 const did = await response.data;
