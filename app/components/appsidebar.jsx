@@ -272,7 +272,7 @@ export default function AppSidebar({
               {!isMobile ? (
                 <button
                   onClick={toggleSidebar}
-                  className="rounded-full bg-zinc-800 hover:bg-zinc-700 p-2 text-zinc-300 hover:text-white"
+                  className="rounded-full bg-zinc-800 hover:bg-zinc-700 p-2 text-zinc-300 hover:text-white cursor-pointer"
                   title="Toggle Sidebar"
                 >
                   <PanelLeft
@@ -317,7 +317,7 @@ export default function AppSidebar({
                   onNewChat?.();
                   if (isMobile) setMobileOpen(false);
                 }}
-                className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 text-white py-2 rounded-md shadow flex items-center justify-center transition-colors ${
+                className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 text-white py-2 rounded-md shadow cursor-pointer flex items-center justify-center transition-colors ${
                   collapsed && !isMobile ? "px-2" : "px-4"
                 }`}
                 disabled={isLoading}
@@ -448,7 +448,7 @@ export default function AppSidebar({
                       )}
                     </>
                   ) : (
-                    <Plus size={20} className="mx-auto opacity-50" />
+                    <Plus size={20} className="mx-auto opacity-50 hidden" />
                   )}
                 </div>
               )}
@@ -468,7 +468,7 @@ export default function AppSidebar({
                 {showLabels && "Dashboard"}
               </Link>
               <button
-                className={`flex items-center text-zinc-300 hover:text-white p-2 w-full rounded-md hover:bg-zinc-800 transition-colors ${
+                className={`flex items-center text-zinc-300 hover:text-white p-2 w-full rounded-md hover:bg-zinc-800 cursor-pointer transition-colors ${
                   collapsed && !isMobile ? "justify-center" : ""
                 }`}
                 onClick={() => {

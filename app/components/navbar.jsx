@@ -160,7 +160,7 @@ const Navbar = ({
     <div className="border-b border-zinc-800 p-3 flex items-center justify-between bg-zinc-900 sticky top-0 z-10">
       <div
         className={`flex items-center ${
-          !isMobile && collapsed ? "ml-20" : "ml-14 lg:ml-0"
+          !isMobile && collapsed ? "ml-1" : "ml-14 lg:ml-0"
         }`}
       >
         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white mr-3 shadow-md">
@@ -173,59 +173,53 @@ const Navbar = ({
               {isImageMode ? "Image Generation Mode" : "Text Chat Mode"}
             </p>
           </div>
-
-          {!isImageMode && isModelToolCapable(selectedModel) && (
-            <button
-              onClick={toggleTools}
-              className={`flex items-center px-2 py-1.5 rounded-md transition-colors ${
-                enableTools
-                  ? "bg-green-900/30 text-green-400"
-                  : "bg-zinc-800 text-zinc-400"
-              }`}
-            >
-              <Terminal size={16} className="mr-1" />
-              <span className="text-xs hidden sm:inline">Tools</span>
-            </button>
-          )}
-          {!isModelToolCapable(selectedModel) && (
-            <button
-              onClick={toggleWebSearchForNonToolModels}
-              className={`flex items-center px-2 py-1.5 rounded-md transition-colors ${
-                enableWebSearchForNonToolModels
-                  ? "bg-green-900/30 text-green-400"
-                  : "bg-zinc-800 text-zinc-400"
-              }`}
-            >
-              <Terminal size={16} className="mr-1" />
-              <span className="text-xs hidden sm:inline">Web Search</span>
-            </button>
-          )}
         </div>
       </div>
 
-      {spaceError && (
-        <div className="hidden sm:flex items-center text-red-400 text-xs mr-2">
-          <AlertTriangle size={14} className="mr-1" />
-          <span>{spaceError}</span>
-        </div>
-      )}
-
       <div className="flex items-center space-x-2">
+        {!isImageMode && isModelToolCapable(selectedModel) && (
+          <button
+            onClick={toggleTools}
+            className={`flex items-center px-2 py-1.5 cursor-pointer rounded-md transition-colors ${
+              enableTools
+                ? "bg-green-900/30 text-green-400"
+                : "bg-zinc-800 text-zinc-400"
+            }`}
+          >
+            <Terminal size={16} className="mr-1" />
+            <span className="text-xs hidden sm:inline">Tools</span>
+          </button>
+        )}
+        {!isModelToolCapable(selectedModel) && (
+          <button
+            onClick={toggleWebSearchForNonToolModels}
+            className={`flex items-center px-2 py-1.5 rounded-md transition-colors ${
+              enableWebSearchForNonToolModels
+                ? "bg-green-900/30 text-green-400"
+                : "bg-zinc-800 text-zinc-400"
+            }`}
+          >
+            <Terminal size={16} className="mr-1" />
+            <span className="text-xs hidden cursor-pointer sm:inline">
+              Web Search
+            </span>
+          </button>
+        )}
         <div className="flex items-center space-x-1 bg-zinc-800 p-1 rounded-lg">
           <button
             onClick={() => setIsImageMode(false)}
-            className={`text-xs sm:text-sm px-2 py-1 rounded ${
+            className={`text-xs sm:text-sm px-2 cursor-pointer py-1 rounded ${
               !isImageMode
                 ? "bg-zinc-700 text-blue-400 shadow-sm"
                 : "text-zinc-400"
             } flex items-center`}
           >
             <MessageSquare size={16} className="mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Text</span>
+            <span className="hidden  sm:inline">Text</span>
           </button>
           <button
             onClick={() => setIsImageMode(true)}
-            className={`text-xs sm:text-sm px-2 py-1 rounded ${
+            className={`text-xs sm:text-sm px-2 cursor-pointer py-1 rounded ${
               isImageMode
                 ? "bg-zinc-700 text-purple-400 shadow-sm"
                 : "text-zinc-400"
@@ -322,7 +316,7 @@ const Navbar = ({
         {walletIsConnected && spaceId && (
           <button
             onClick={() => setShowStorachaPanel(!showStorachaPanel)}
-            className={`hidden sm:flex text-xs px-2 py-1.5 rounded-md transition-colors ${
+            className={`hidden sm:flex text-xs px-2 cursor-pointer py-1.5 rounded-md transition-colors ${
               showStorachaPanel
                 ? "bg-teal-900/30 text-teal-400"
                 : "bg-zinc-800 text-zinc-400"
@@ -350,7 +344,7 @@ const Navbar = ({
         <div className="relative hidden sm:block" ref={menuRef}>
           <button
             onClick={() => setMenuVisible(!menuVisible)}
-            className="text-zinc-400 hover:text-zinc-300 p-2 rounded-full"
+            className="text-zinc-400 hover:text-zinc-300  cursor-pointer p-2 rounded-full"
           >
             <MoreVertical size={20} />
           </button>

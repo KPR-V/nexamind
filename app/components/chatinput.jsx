@@ -126,9 +126,9 @@ const ChatInput = memo(
 
         <form
           onSubmit={handleSubmit}
-          className="flex items-center bg-zinc-900 rounded-md" // Changed from 'items-end' to 'items-center'
+          className="flex items-center bg-zinc-900 rounded-md"
         >
-          <div className="relative flex-1 flex items-center"> {/* Added flex and items-center */}
+          <div className="relative flex-1 flex items-center"> 
             <textarea
               ref={inputRef}
               value={localMessage}
@@ -139,7 +139,7 @@ const ChatInput = memo(
                   ? "Describe the image you want to generate..."
                   : "Type a message or ask me anything..."
               }
-              rows={1} // Fixed to 1 row initially
+              rows={1} 
               className={`w-full bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-tl-md rounded-bl-md p-3 pr-10 resize-none transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 isFocused ? "border-blue-500" : "border-zinc-700"
               }`}
@@ -148,8 +148,8 @@ const ChatInput = memo(
               onBlur={() => setIsFocused(false)}
               style={{ 
                 minHeight: "44px",
-                maxHeight: "100px", // Reduced max height
-                overflow: "auto" // Add scrolling for longer content
+                maxHeight: "100px", 
+                overflow: "auto" 
               }}
             />
 

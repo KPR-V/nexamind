@@ -593,7 +593,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
   return (
     <div
       className={`flex flex-col h-screen transition-all duration-300 ${
-        !isMobile && collapsed ? "lg:ml-16" : "lg:ml-72"
+        !isMobile && collapsed ? "lg:ml-1" : "lg:ml-56"
       }`}
     >
       <Navbar
@@ -614,8 +614,8 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         toggleWebSearchForNonToolModels={toggleWebSearchForNonToolModels}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden bg-zinc-900">
-        <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-4 relative">
+      <div className="flex-1 flex flex-col overflow-hidden items-center bg-zinc-900">
+        <div className="flex-1 flex flex-col max-w-8xl w-full px-4 relative">
         
           <StorachaPanel
             isOpen={showStorachaPanel}
@@ -704,7 +704,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 max-w-xl">
-                  {isImageMode
+                  {(isImageMode
                     ? [
                         "A breathtaking mountain landscape at sunset",
                         "A futuristic city with flying cars and neon lights",
@@ -716,7 +716,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
                         "What's the weather in Tokyo right now?",
                         "Help me plan a 7-day trip to Japan",
                         "What are the latest developments in AI?",
-                      ].map((prompt, idx) => (
+                      ]).map((prompt, idx) => (
                         <motion.button
                           key={idx}
                           whileHover={{ scale: 1.02 }}

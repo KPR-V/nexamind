@@ -36,6 +36,7 @@
 - **Storacha Storage**: Securely store conversations and generated images on IPFS with encryption
 - **Responsive Design**: Fully functional on both desktop and mobile devices
 - **Multi-Model Support**: Choose from various LLM and image generation models
+- **Web Search Support**: All the llms have support for the webs search using the web search endpoint of anura api 
 
 
 ## 📋 Prerequisites
@@ -61,7 +62,7 @@
 
 3. Create a `.env.local` file in the project root and add the following environment variables:
 
-   ```
+   ```bash
    LILYPAD_API_KEY=your_lilypad_api_key
    GOOGLE_SEARCH_API_KEY=your_google_api_key
    GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id
@@ -77,19 +78,6 @@
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-## 🌐 Model Support
-
-### Text Chat Models
-
-- llama3.1:8b
-- qwen2.5:7b
-- qwen2.5-coder:7b
-- phi4-mini:3.8b
-- mistral:7b
-
-### Image Generation Models
-
-- Automatically fetched from Lilypad API
 
 ## 📚 Usage
 
@@ -97,15 +85,14 @@
 2. **Image Generation**: Toggle to image mode to generate images from text prompts.
 3. **File Upload**: Upload images for AI analysis.
 4. **Tool Usage**: Enable or disable web search capabilities for more accurate responses.
-5. **Storage**: Connect your Web3 wallet to save conversations and images to Storacha (IPFS).
+5. **Storage**: Connect your Web3 wallet to save conversations and images to Storacha .
 6. **Model Selection**: Choose from various AI models based on your needs.
 
 ## 🔐 Storacha Storage
 
 NexaMind uses a decentralized storage system called Storacha that:
 
-- Encrypts your data with your wallet address as a key
-- Stores information on IPFS using web3.storage
+- Stores your data encrypted with your wallet address as a key
 - Provides permanent, decentralized storage for your conversations and generated images
 
 ## 📱 Responsive Design
@@ -126,13 +113,13 @@ Access your stored content through the dashboard:
 
 ## 📄 License
 
-[MIT License](LICENSE.txt)
+[MIT License](https://github.com/KPR-V/nexamind/blob/main/LICENSE.txt)
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
-
+<!-- MARKDOWN LINKS & IMAGES -->
 [contributors-shield]: https://img.shields.io/github/contributors/KPR-V/nexamind.svg?style=for-the-badge
 [contributors-url]: https://github.com/KPR-V/nexamind/graphs/contributors
 [forks-shield]: https://img.shields.io/github/forks/KPR-V/nexamind.svg?style=for-the-badge
@@ -141,5 +128,5 @@ Access your stored content through the dashboard:
 [stars-url]: https://github.com/KPR-V/nexamind/stargazers
 [issues-shield]: https://img.shields.io/github/issues/KPR-V/nexamind.svg?style=for-the-badge
 [issues-url]: https://github.com/KPR-V/nexamind/issues
-[license-shield]: https://img.shields.io/github/license/KPR-V/nexamind.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/KPR-V/Nexamind.svg?style=for-the-badge
 [license-url]: https://github.com/KPR-V/nexamind/blob/main/LICENSE.txt
