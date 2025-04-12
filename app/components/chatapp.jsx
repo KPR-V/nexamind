@@ -394,6 +394,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         { 
           responseType: "arraybuffer",
           timeout: 300000, 
+        }
       );
 
       const base64Image = `data:image/png;base64,${Buffer.from(
