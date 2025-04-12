@@ -10,10 +10,11 @@ import {
   Bookmark,
   FileText,
   RefreshCw,
-  Database
+  Database,
+  AlertTriangle
 } from "lucide-react";
 import Link from "next/link";
-import { useDisconnect } from "wagmi";
+import { useDisconnect, useAccount } from "wagmi";
 import { useSidebar } from "./ui/SidebarContext";
 import axios from "axios";
 
@@ -25,57 +26,114 @@ export default function AppSidebar({
   const { collapsed, mobileOpen, isMobile, toggleSidebar, setMobileOpen } =
     useSidebar();
   const { disconnect } = useDisconnect();
+  const { address: walletAddress, isConnected } = useAccount();
+  
   const [storedConversations, setStoredConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [spaceName, setSpaceName] = useState("Loading...");
   const [spaceId, setSpaceId] = useState("");
+  const [spaceError, setSpaceError] = useState(null);
 
   const sidebarWidth = collapsed && !isMobile ? "w-16" : "w-72";
   const showLabels = !collapsed || isMobile;
 
-  // Fetch space info and stored conversations on component mount
+  // Effect to handle wallet address changes
   useEffect(() => {
-    fetchSpaceInfo();
-    fetchStoredConversations();
-  }, []);
+    if (isConnected && walletAddress) {
+      handleWalletChange(walletAddress);
+    } else {
+      setSpaceId("");
+      setSpaceName("Not Connected");
+      setStoredConversations([]);
+    }
+  }, [walletAddress, isConnected]);
 
-  // Fetch space information
-  const fetchSpaceInfo = async () => {
+  // Handle wallet address change
+  const handleWalletChange = async (address) => {
+    setIsLoading(true);
+    setSpaceError(null);
+    
     try {
-      const didResponse = await axios.get("http://localhost:5000/getDID");
-      const did = didResponse.data;
-      setSpaceId(did);
+      // First check if this wallet already has a space
+      const spaceResponse = await axios.get("http://localhost:5000/getSpaceForWallet", {
+        params: { walletAddress: address }
+      });
       
-      // Extract space name from DID
-      if (did) {
-        // If DID has a format like did:key:zXXXXX or did:web:spacename, etc.
-        const parts = did.split(":");
-        if (parts.length >= 3) {
-          setSpaceName(parts[2].substring(0, 10) + "...");
-        } else {
-          setSpaceName(did.substring(0, 10) + "...");
-        }
+      if (spaceResponse.data && spaceResponse.data.did) {
+        // Space exists, set it as current
+        await axios.post("http://localhost:5000/setCurrentSpace", {
+          did: spaceResponse.data.did
+        });
         
-        // Alternatively, if you have an endpoint that returns space info:
-        // const spaceInfoResponse = await axios.get("http://localhost:5000/getSpaceInfo", {
-        //   params: { did }
-        // });
-        // setSpaceName(spaceInfoResponse.data.name || "Unknown Space");
+        setSpaceId(spaceResponse.data.did);
+        setSpaceName(formatSpaceName(spaceResponse.data.did, address));
+        
+        // Now fetch conversations for this space
+        await fetchStoredConversations(spaceResponse.data.did);
+      } else {
+        // Something went wrong with the response
+        throw new Error("Invalid response from server");
       }
     } catch (error) {
-      console.error("Error fetching space info:", error);
-      setSpaceName("Unknown Space");
+      // If error is 404, it means no space exists for this wallet
+      if (error.response && error.response.status === 404) {
+        try {
+          console.log("Creating new space for wallet:", address);
+          // Create a new space for this wallet
+          const createResponse = await axios.post("http://localhost:5000/createstorachaspace", {
+            walletaddress: address
+          });
+          
+          if (createResponse.data && createResponse.data.did) {
+            setSpaceId(createResponse.data.did);
+            setSpaceName(formatSpaceName(createResponse.data.did, address));
+            
+            // No conversations yet for a new space
+            setStoredConversations([]);
+          } else {
+            throw new Error("Failed to create space");
+          }
+        } catch (createError) {
+          console.error("Error creating space:", createError);
+          setSpaceError("Failed to create space. Please try again.");
+        }
+      } else {
+        console.error("Error handling wallet change:", error);
+        setSpaceError("Error connecting to space. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
     }
+  };
+  
+  // Helper to format space name
+  const formatSpaceName = (did, address) => {
+    // Format wallet address
+    const shortAddress = address ? 
+      `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 
+      "Unknown";
+      
+    // If DID is available, show part of it
+    if (did) {
+      const parts = did.split(":");
+      if (parts.length >= 3) {
+        return `${shortAddress} (${parts[2].substring(0, 6)}...)`;
+      }
+    }
+    
+    return shortAddress;
   };
 
   // Fetch stored conversations from Storacha
-  const fetchStoredConversations = async () => {
+  const fetchStoredConversations = async (did = spaceId) => {
     setIsLoading(true);
     try {
-      const didResponse = await axios.get("http://localhost:5000/getDID");
-      const did = didResponse.data;
-      setSpaceId(did);
+      if (!did) {
+        const didResponse = await axios.get("http://localhost:5000/getDID");
+        did = didResponse.data;
+        setSpaceId(did);
+      }
       
       // Get the list of uploaded files
       const response = await axios.get("http://localhost:5000/listUploads", {
@@ -120,6 +178,7 @@ export default function AppSidebar({
       }
     } catch (error) {
       console.error("Error fetching stored conversations:", error);
+      setSpaceError("Failed to load conversations");
     } finally {
       setIsLoading(false);
     }
@@ -150,8 +209,11 @@ export default function AppSidebar({
   const handleChatUpload = async () => {
     try {
       setIsLoading(true);
-      const didResponse = await axios.get("http://localhost:5000/getDID");
-      const did = didResponse.data;
+      
+      if (!spaceId) {
+        setSpaceError("No active space. Please connect your wallet.");
+        return;
+      }
       
       const chatdata = localStorage.getItem("chatMessages");
       if (!chatdata) {
@@ -163,7 +225,7 @@ export default function AppSidebar({
       
       const response = await axios.post("http://localhost:5000/uploadFile", {
         chatdata: parsedChatData,
-        did
+        did: spaceId
       });
       
       console.log("Upload successful:", response.data);
@@ -173,6 +235,7 @@ export default function AppSidebar({
       
     } catch (e) {
       console.error("Error uploading chat:", e);
+      setSpaceError("Failed to save chat");
     } finally {
       setIsLoading(false);
     }
@@ -253,6 +316,16 @@ export default function AppSidebar({
               </div>
             )}
 
+            {/* Error message if any */}
+            {showLabels && spaceError && (
+              <div className="px-4 py-2 bg-red-900/30 border-b border-red-800">
+                <div className="flex items-center text-red-400 text-xs">
+                  <AlertTriangle size={12} className="mr-1" />
+                  <span>{spaceError}</span>
+                </div>
+              </div>
+            )}
+
             <div className="p-4">
               <button
                 onClick={() => {
@@ -272,9 +345,10 @@ export default function AppSidebar({
             <div className="pt-2 pr-4 pl-4 pb-4">
               <button 
                 onClick={handleChatUpload}
-                disabled={isLoading}
+                disabled={isLoading || !spaceId}
                 className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 text-white py-2 rounded-md shadow flex items-center justify-center transition-colors ${
-                  collapsed && !isMobile ? "px-2" : "px-4"
+                  (!spaceId ? "opacity-50 cursor-not-allowed " : "") +
+                  (collapsed && !isMobile ? "px-2" : "px-4")
                 }`}>
                 <Bookmark size={18} className={showLabels ? "mr-2" : ""} />
                 {showLabels && (isLoading ? "Saving..." : "Save Chat")}
@@ -289,8 +363,8 @@ export default function AppSidebar({
                   </h3>
                   <button 
                     onClick={reloadStoredConversations}
-                    disabled={isReloading}
-                    className="text-zinc-400 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition-colors"
+                    disabled={isReloading || !spaceId}
+                    className={`text-zinc-400 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition-colors ${!spaceId ? "opacity-50 cursor-not-allowed" : ""}`}
                     title="Reload stored conversations"
                   >
                     <RefreshCw 
@@ -374,11 +448,19 @@ export default function AppSidebar({
                     </div>
                   ) : showLabels ? (
                     <>
-                      <Plus size={24} className="mx-auto mb-3 opacity-50" />
-                      <p>No conversations yet</p>
-                      <p className="text-xs mt-2">
-                        Start a new chat to see it here
-                      </p>
+                      {!spaceId ? (
+                        <p className="text-xs mt-2">
+                          Connect your wallet to access your space
+                        </p>
+                      ) : (
+                        <>
+                          <Plus size={24} className="mx-auto mb-3 opacity-50" />
+                          <p>No conversations yet</p>
+                          <p className="text-xs mt-2">
+                            Start a new chat to see it here
+                          </p>
+                        </>
+                      )}
                     </>
                   ) : (
                     <Plus size={20} className="mx-auto opacity-50" />

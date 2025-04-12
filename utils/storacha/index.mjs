@@ -5,35 +5,123 @@ import axios from "axios";
 import cors from "cors";
 import fs from "fs";
 
+// Add this to store wallet-to-space mappings
+let walletSpaceMap = {};
+
+// Load existing mappings from file if available
+try {
+  if (fs.existsSync('./wallet-space-mappings.json')) {
+    walletSpaceMap = JSON.parse(fs.readFileSync('./wallet-space-mappings.json', 'utf8'));
+    console.log("Loaded wallet-to-space mappings:", walletSpaceMap);
+  }
+} catch (error) {
+  console.error("Error loading wallet-space mappings:", error);
+}
+
+// Helper function to save the mappings
+function saveWalletSpaceMap() {
+  fs.writeFileSync('./wallet-space-mappings.json', JSON.stringify(walletSpaceMap, null, 2));
+}
+
 const app = express();
 app.use(cors())
 app.use(express.json())
 
+// Update the /createstorachaspace endpoint handler
+
 app.post('/createstorachaspace', async (req, res) => {
-    const walletaddress = req.body;
-    console.log(req.body)
-    console.log(walletaddress.walletaddress)
-    const parsedWalletAddress = JSON.stringify(walletaddress);
-    console.log(parsedWalletAddress.slice(1, -1))
-    if (!walletaddress) {
+    try {
+        const walletaddress = req.body;
+        console.log("Request body:", req.body);
+        
+        if (!walletaddress || !walletaddress.walletaddress) {
+            return res.status(400).json({ error: "Wallet address is required" });
+        }
+        
+        // Check if this wallet already has a space
+        if (walletSpaceMap[walletaddress.walletaddress]) {
+            return res.json({ 
+                did: walletSpaceMap[walletaddress.walletaddress],
+                message: "Space already exists for this wallet"
+            });
+        }
+        
+        const email = "sehajjain02@gmail.com";
+        console.log("Creating space for wallet:", walletaddress.walletaddress);
+        
+        const result = await createSpace(walletaddress.walletaddress, email);
+        if (!result) {
+            return res.status(500).json({ error: "Failed to create space (null result)" });
+        }
+        
+        // Store the mapping
+        walletSpaceMap[walletaddress.walletaddress] = result;
+        saveWalletSpaceMap();
+        
+        res.json({ did: result });
+        console.log("Space created:", result);
+    } catch (error) {
+        console.error("Error in createstorachaspace:", error);
+        res.status(500).json({ error: error.message || "Unknown error creating space" });
+    }
+});
+
+// New endpoint to get space for a wallet
+app.get('/getSpaceForWallet', async (req, res) => {
+    const { walletAddress } = req.query;
+    
+    if (!walletAddress) {
         return res.status(400).json({ error: "Wallet address is required" });
     }
-    const email = "sehajjain02@gmail.com"
-    const result = await createSpace(walletaddress.walletaddress,email);
-    res.json(result);
-    console.log(result)
-    console.log("successful")
-})
+    
+    // Return the space DID if it exists
+    if (walletSpaceMap[walletAddress]) {
+        return res.json({ did: walletSpaceMap[walletAddress] });
+    }
+    
+    // No space exists for this wallet
+    res.status(404).json({ error: "No space found for this wallet address" });
+});
 
-async function createSpace(name,email) {
-    const client = await create();
-    if (email) {
-        const account = await client.login(email);
-         const space = await client.createSpace(name,{account})
-         return space.did()
+// Also update the createSpace function with better error handling
+async function createSpace(name, email) {
+    try {
+        console.log(`Creating space for "${name}" with email "${email}"`);
+        const client = await create();
+        if (!email) {
+            throw new Error("Email is required to create a space");
+        }
         
+        console.log("Logging in with email...");
+        const account = await client.login(email);
+        console.log("Account created, creating space...");
+        
+        const space = await client.createSpace(name, {account});
+        const did = space.did();
+        console.log("Space created with DID:", did);
+        return did;
+    } catch (error) {
+        console.error("Error in createSpace function:", error);
+        throw error; // Re-throw to be handled by the caller
     }
 }
+
+app.post('/setCurrentSpace', async (req, res) => {
+    try {
+        const { did } = req.body;
+        if (!did) {
+            return res.status(400).json({ error: "DID is required" });
+        }
+        
+        const client = await create();
+        await client.setCurrentSpace(did);
+        
+        res.json({ success: true, message: "Current space set successfully" });
+    } catch (error) {
+        console.error("Error setting current space:", error);
+        res.status(500).json({ error: "Failed to set current space", details: error.message });
+    }
+});
 
 async function uploadfile(did){
     const client = await create();
