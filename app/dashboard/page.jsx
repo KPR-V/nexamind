@@ -3,17 +3,18 @@
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import axios from "axios";
+import storachaService from "../../utils/storachaService";
+import FileUploadForm from '../components/FileUploadForm';
 
-export default function DashboardPage() {
+function DashboardPage() {
   const { isConnected, address: walletAddress } = useAccount();
   const [activeTab, setActiveTab] = useState("conversations");
-  const [spaceId, setSpaceId] = useState("");
+  const [spaceId, setSpaceId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [generatedImages, setGeneratedImages] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -25,13 +26,10 @@ export default function DashboardPage() {
   const fetchSpaceId = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get("http://localhost:5000/getSpaceForWallet", {
-        params: { walletAddress }
-      });
-      
-      if (response.data && response.data.did) {
-        setSpaceId(response.data.did);
-        fetchStoredData(response.data.did);
+      const response = await storachaService.getSpaceForWallet(walletAddress);
+      if (response && response.did) {
+        setSpaceId(response.did);
+        fetchStoredData(response.did);
       }
     } catch (error) {
       console.error("Error fetching space ID:", error);
@@ -43,7 +41,6 @@ export default function DashboardPage() {
 
   const refreshData = async () => {
     if (!spaceId || isRefreshing) return;
-    
     setIsRefreshing(true);
     try {
       await fetchStoredData(spaceId);
@@ -55,60 +52,68 @@ export default function DashboardPage() {
   const fetchStoredData = async (did) => {
     setIsLoading(true);
     try {
-      const response = await axios.get("http://localhost:5000/listUploads", {
-        params: { did }
-      });
-      
-      if (response.data && Array.isArray(response.data.uploads)) {
+      const response = await storachaService.listUploads(did);
+      if (response && Array.isArray(response.uploads)) {
         const chats = [];
         const files = [];
         const images = [];
-        
+
         await Promise.all(
-          response.data.uploads.map(async (upload) => {
+          response.uploads.map(async (upload) => {
             try {
               const cidString = upload.root.toString();
-              
               let contentResponse;
+
               try {
-                contentResponse = await axios.get(`http://localhost:5000/getUpload`, {
-                  params: { cid: cidString, did }
-                });
+                contentResponse = await storachaService.getUpload(
+                  cidString,
+                  did
+                );
               } catch (fetchError) {
-                console.warn(`Could not get details for upload ${cidString}, using basic info`);
+                console.warn(
+                  `Could not get details for upload ${cidString}, using basic info`
+                );
                 files.push({
                   id: cidString,
                   name: `File ${cidString.substring(0, 8)}...`,
                   size: upload.size || 0,
                   timestamp: upload.uploaded || Date.now(),
                   url: `https://${cidString}.ipfs.w3s.link`,
-                  type: 'file'
+                  type: "file",
+                  error: true,
                 });
                 return;
               }
-              
-              const data = contentResponse.data;
-              
-              if (data.type === "chat" || 
-                  (data.messages && Array.isArray(data.messages)) || 
-                  (Array.isArray(data) && data.length > 0 && data[0].sender)) {
-                const messages = Array.isArray(data) ? data : (data.messages || []);
-                
+
+              const data = contentResponse;
+
+              if (
+                data.type === "chat" ||
+                (data.messages && Array.isArray(data.messages)) ||
+                (Array.isArray(data) &&
+                  data.length > 0 &&
+                  data[0].sender)
+              ) {
+                const messages = Array.isArray(data)
+                  ? data
+                  : data.messages || [];
                 chats.push({
                   id: cidString,
                   messages: messages,
                   timestamp: upload.uploaded || data.timestamp || Date.now(),
                   url: `https://${cidString}.ipfs.w3s.link`,
-                  title: getChatTitle(messages)
+                  title: getChatTitle(messages),
                 });
-              } else if (data.type === "image" || 
-                        (data.mimetype && data.mimetype.startsWith("image/")) ||
-                        (data.url && (data.prompt || data.description))) {
+              } else if (
+                data.type === "image" ||
+                (data.mimetype && data.mimetype.startsWith("image/")) ||
+                (data.url && (data.prompt || data.description))
+              ) {
                 images.push({
                   id: cidString,
                   url: data.url || `https://${cidString}.ipfs.w3s.link`,
                   prompt: data.prompt || data.description || "Image",
-                  timestamp: upload.uploaded || data.timestamp || Date.now()
+                  timestamp: upload.uploaded || data.timestamp || Date.now(),
                 });
               } else {
                 files.push({
@@ -117,8 +122,8 @@ export default function DashboardPage() {
                   size: data.size || upload.size || 0,
                   timestamp: upload.uploaded || data.uploadedAt || Date.now(),
                   url: `https://${cidString}.ipfs.w3s.link`,
-                  type: data.type || 'file',
-                  mimetype: data.mimetype
+                  type: data.type || "file",
+                  mimetype: data.mimetype,
                 });
               }
             } catch (error) {
@@ -129,13 +134,13 @@ export default function DashboardPage() {
                 size: upload.size || 0,
                 timestamp: upload.uploaded || Date.now(),
                 url: `https://${upload.root.toString()}.ipfs.w3s.link`,
-                type: 'file',
-                error: true
+                type: "file",
+                error: true,
               });
             }
           })
         );
-        
+
         setConversations(chats);
         setUploadedFiles(files);
         setGeneratedImages(images);
@@ -150,14 +155,12 @@ export default function DashboardPage() {
 
   const getChatTitle = (messages) => {
     if (!messages || !Array.isArray(messages)) return "Saved Chat";
-    
-    const firstUserMessage = messages.find(m => m.sender === "user");
+    const firstUserMessage = messages.find((m) => m.sender === "user");
     if (firstUserMessage && firstUserMessage.text) {
       return firstUserMessage.text.length > 30
         ? firstUserMessage.text.substring(0, 30) + "..."
         : firstUserMessage.text;
     }
-    
     return "Saved Chat";
   };
 
@@ -183,14 +186,14 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto p-4 bg-zinc-50 dark:bg-zinc-900 min-h-screen">
       <div className="flex items-center justify-between mb-6">
-        <a 
+        <a
           href="/"
           className="flex items-center text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
         >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-5 w-5 mr-2" 
-            viewBox="0 0 20 20" 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 mr-2"
+            viewBox="0 0 20 20"
             fill="currentColor"
           >
             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
@@ -200,19 +203,23 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
           Your Storacha Storage
         </h1>
-        <button 
-          onClick={refreshData} 
+        <button
+          onClick={refreshData}
           disabled={isRefreshing}
           className="flex items-center text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white disabled:opacity-50 transition-colors"
           title="Refresh data"
         >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} 
-            viewBox="0 0 20 20" 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
+            viewBox="0 0 20 20"
             fill="currentColor"
           >
-            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+              clipRule="evenodd"
+            />
           </svg>
         </button>
       </div>
@@ -221,13 +228,29 @@ export default function DashboardPage() {
         <div className="mb-4 p-3 bg-white dark:bg-zinc-800 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Your Space:</span>
-              <p className="text-sm font-mono text-zinc-700 dark:text-zinc-300 truncate" title={spaceId}>
-                {spaceId.length > 40 ? `${spaceId.substring(0, 20)}...${spaceId.substring(spaceId.length - 20)}` : spaceId}
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Your Space:
+              </span>
+              <p
+                className="text-sm font-mono text-zinc-700 dark:text-zinc-300 truncate"
+                title={spaceId}
+              >
+                {spaceId.length > 40
+                  ? `${spaceId.substring(0, 20)}...${spaceId.substring(
+                      spaceId.length - 20
+                    )}`
+                  : spaceId}
               </p>
             </div>
           </div>
         </div>
+      )}
+
+      {spaceId && (
+        <FileUploadForm 
+          spaceId={spaceId} 
+          onUploadSuccess={refreshData} 
+        />
       )}
 
       {isLoading ? (
@@ -351,18 +374,23 @@ export default function DashboardPage() {
                 uploadedFiles.map((file) => (
                   <div
                     key={file.id}
-                    className={`bg-white dark:bg-zinc-800 p-4 rounded-lg shadow ${file.error ? 'border border-yellow-500 dark:border-yellow-700' : ''}`}
+                    className={`bg-white dark:bg-zinc-800 p-4 rounded-lg shadow ${
+                      file.error
+                        ? "border border-yellow-500 dark:border-yellow-700"
+                        : ""
+                    }`}
                   >
                     <div className="flex items-center">
-                      {file.mimetype?.startsWith('image/') ? (
+                      {file.mimetype?.startsWith("image/") ? (
                         <div className="w-12 h-12 bg-zinc-200 dark:bg-zinc-700 rounded mr-3 flex items-center justify-center overflow-hidden">
-                          <img 
-                            src={file.url} 
-                            alt={file.name} 
-                            className="w-full h-full object-cover" 
+                          <img
+                            src={file.url}
+                            alt={file.name}
+                            className="w-full h-full object-cover"
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z'%3E%3C/path%3E%3Cpolyline points='14 2 14 8 20 8'%3E%3C/polyline%3E%3C/svg%3E";
+                              e.target.src =
+                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z'%3E%3C/path%3E%3Cpolyline points='14 2 14 8 20 8'%3E%3C/polyline%3E%3C/svg%3E";
                             }}
                           />
                         </div>
@@ -382,11 +410,19 @@ export default function DashboardPage() {
                         </svg>
                       )}
                       <div className="overflow-hidden">
-                        <p className="text-zinc-800 dark:text-zinc-200 font-medium truncate" title={file.name}>
+                        <p
+                          className="text-zinc-800 dark:text-zinc-200 font-medium truncate"
+                          title={file.name}
+                        >
                           {file.name}
                         </p>
                         <p className="text-xs text-zinc-500">
-                          {formatFileSize(file.size)} {file.mimetype && `• ${file.mimetype.split('/')[1]?.toUpperCase() || file.mimetype}`}
+                          {formatFileSize(file.size)}{" "}
+                          {file.mimetype &&
+                            `• ${
+                              file.mimetype.split("/")[1]?.toUpperCase() ||
+                              file.mimetype
+                            }`}
                         </p>
                       </div>
                     </div>
@@ -400,7 +436,7 @@ export default function DashboardPage() {
                         rel="noopener noreferrer"
                         className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                       >
-                        {file.error ? 'Try View' : 'Download'}
+                        {file.error ? "Try View" : "Download"}
                       </a>
                     </div>
                   </div>
@@ -417,7 +453,9 @@ export default function DashboardPage() {
 function formatFileSize(bytes) {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
+
+export default DashboardPage;

@@ -7,6 +7,18 @@ import fs from "fs";
 import multer from 'multer';
 import path from 'path';
 
+// Load environment variables
+dotenv.config();
+
+// Set up proper CORS configuration
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  optionsSuccessStatus: 200
+};
+
+const app = express();
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '50mb' }));
 
 let walletSpaceMap = {};
 
@@ -24,11 +36,6 @@ try {
 function saveWalletSpaceMap() {
   fs.writeFileSync('./wallet-space-mappings.json', JSON.stringify(walletSpaceMap, null, 2));
 }
-
-const app = express();
-app.use(cors())
-app.use(express.json())
-
 
 app.post('/createstorachaspace', async (req, res) => {
     try {
@@ -400,6 +407,8 @@ const storage = multer.diskStorage({
     }
   });
 
-app.listen(5000, () => {
-    console.log('Server is running on port 5000');
+// Update the port to use environment variable
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 })
