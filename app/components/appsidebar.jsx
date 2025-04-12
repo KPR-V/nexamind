@@ -139,14 +139,25 @@ export default function AppSidebar({
                 }
               });
               
-              const chatData = contentResponse.data;
+              const data = contentResponse.data;
+              
+              if (data.type !== "chat" && 
+                  !(Array.isArray(data) && data.length > 0 && data[0].sender) && 
+                  !(data.messages && Array.isArray(data.messages))) {
+                // Skip non-chat uploads
+                return null;
+              }
+              
+              const messages = Array.isArray(data) ? data : (data.messages || []);
               
               return {
                 id: cidString,
-                messages: chatData,
-                timestamp: upload.uploaded || Date.now(),
+                messages: messages,
+                timestamp: upload.uploaded || data.timestamp || Date.now(),
                 isStoredChat: true,
-                title: getChatTitle(chatData)
+                title: getChatTitle(messages),
+                size: upload.size,
+                type: "chat"
               };
             } catch (error) {
               console.error("Error fetching upload content:", error);

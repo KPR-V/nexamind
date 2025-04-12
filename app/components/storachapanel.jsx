@@ -107,6 +107,9 @@ const StorachaPanel = ({
       }
       
       formData.append("did", spaceId);
+      
+      formData.append("type", "file");
+      formData.append("name", file.name);
 
       const response = await axios.post("http://localhost:5000/uploadFileFromClient", formData, {
         headers: {

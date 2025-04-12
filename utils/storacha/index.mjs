@@ -180,29 +180,54 @@ async function getUpload(cidString, did) {
         await client.setCurrentSpace(did);
         
         try {
+            const metadataResponse = await fetch(`https://${cidString}.ipfs.w3s.link/metadata.json`);
+            
+            if (metadataResponse.ok) {
+                const metadata = await metadataResponse.json();
+                return metadata;
+            }
+            
             const response = await fetch(`https://${cidString}.ipfs.w3s.link`);
+            
             if (!response.ok) {
                 throw new Error(`Failed to fetch content: ${response.statusText}`);
             }
             
-            const content = await response.json();
+            let content;
+            try {
+                content = await response.json();
+            } catch (jsonError) {
+                return {
+                    name: `File ${cidString.substring(0, 8)}...`,
+                    type: 'file',
+                    size: -1,  
+                    mimetype: response.headers.get('content-type'),
+                    uploadedAt: new Date().toISOString()
+                };
+            }
+            
             return content;
         } catch (fetchError) {
             console.error(`Error fetching content from IPFS gateway:`, fetchError);
             
             try {
                 const upload = await client.capability.upload.get(cidString);
-                if (upload && upload.shards) {
-                    const shard = upload.shards[0];
-                    const shardResponse = await fetch(`https://${shard}.ipfs.w3s.link`);
-                    if (shardResponse.ok) {
-                        return await shardResponse.json();
-                    }
-                }
-                throw new Error("Could not retrieve content from shards");
+                
+                return {
+                    name: `File ${cidString.substring(0, 8)}...`,
+                    type: 'file',
+                    size: upload?.size || 0,
+                    uploadedAt: upload?.uploaded || new Date().toISOString()
+                };
             } catch (shardError) {
                 console.error("Error with fallback content retrieval:", shardError);
-                throw shardError;
+                
+                return {
+                    name: `File ${cidString.substring(0, 8)}...`,
+                    type: 'file',
+                    size: 0,
+                    uploadedAt: new Date().toISOString()
+                };
             }
         }
     } catch (error) {
@@ -219,7 +244,14 @@ app.post('/uploadFile', async (req, res) => {
         }
         
         console.log("Received chat data for upload");
-        fs.writeFileSync('chatdata.json', JSON.stringify(chatdata, null, 2));
+        
+        const dataToStore = {
+            messages: chatdata,
+            type: "chat",
+            timestamp: Date.now()
+        };
+        
+        fs.writeFileSync('chatdata.json', JSON.stringify(dataToStore, null, 2));
         
         const did = req.body.did;
         if (!did) {
@@ -320,20 +352,44 @@ const storage = multer.diskStorage({
       
       await client.setCurrentSpace(did);
       
+      const metadata = {
+        name: req.file.originalname,
+        type: req.body.type || 'file', 
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        uploadedAt: new Date().toISOString(),
+        isStoredChat: false 
+      };
+      
+      const metadataPath = `${filePath}.metadata.json`;
+      fs.writeFileSync(metadataPath, JSON.stringify(metadata));
+      
       const fileData = fs.readFileSync(filePath);
+      const metadataData = fs.readFileSync(metadataPath);
       
       const fileBlob = new Blob([fileData], { type: req.file.mimetype });
-      
       const upload = await client.uploadFile(fileBlob);
       const cidString = upload.toString();
       
       console.log(`File uploaded successfully, CID: ${cidString}`);
       
+      const fileObj = new File([fileData], req.file.originalname, { type: req.file.mimetype });
+      const metaFile = new File([metadataData], 'metadata.json', { type: 'application/json' });
+      
+      try {
+        const dirUpload = await client.uploadDirectory([fileObj, metaFile]);
+        console.log(`Directory uploaded with CID: ${dirUpload.toString()}`);
+      } catch (dirError) {
+        console.error("Error uploading directory:", dirError);
+      }
+      
       fs.unlinkSync(filePath);
+      fs.unlinkSync(metadataPath);
       
       res.json({
         success: true,
-        cid: cidString
+        cid: cidString,
+        metadata: metadata
       });
     } catch (error) {
       console.error('Error uploading file from client:', error);
