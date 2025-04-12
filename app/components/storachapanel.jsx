@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, FileUp } from "lucide-react";
 import { useAccount } from "wagmi";
 import axios from "axios";
+
 const StorachaPanel = ({
   isOpen,
   onClose,
@@ -14,53 +15,122 @@ const StorachaPanel = ({
   const [file, setFile] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+  const [spaceId, setSpaceId] = useState("");
   const fileInputRef = useRef(null);
- const { address } = useAccount();
+  const { address } = useAccount();
 
+  useEffect(() => {
+    if (address) {
+      fetchSpaceId();
+    }
+  }, [address]);
 
-const apicall= async ()=>{
-const response  = await axios.post("http://localhost:5000/createstorachaspace",{
-  walletaddress: address
-})
-const did = await response.data;
-console.log(did)
+  const fetchSpaceId = async () => {
+    try {
+      const spaceResponse = await axios.get("http://localhost:5000/getSpaceForWallet", {
+        params: { walletAddress: address }
+      });
+      
+      if (spaceResponse.data && spaceResponse.data.did) {
+        setSpaceId(spaceResponse.data.did);
+      } else {
+        const createResponse = await axios.post("http://localhost:5000/createstorachaspace", {
+          walletaddress: address
+        });
+        
+        if (createResponse.data && createResponse.data.did) {
+          setSpaceId(createResponse.data.did);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching space ID:", error);
+      if (error.response && error.response.status === 404) {
+        try {
+          const createResponse = await axios.post("http://localhost:5000/createstorachaspace", {
+            walletaddress: address
+          });
+          
+          if (createResponse.data && createResponse.data.did) {
+            setSpaceId(createResponse.data.did);
+          }
+        } catch (createError) {
+          console.error("Error creating space:", createError);
+        }
+      }
+    }
+  };
 
-}
   const handleFileChange = (e) => {
     if (e.target.files?.length > 0) {
       setFile(e.target.files[0]);
     }
   };
 
-  const handleFileUpload = async () => {
-    // if (!file) return;
-
-    // setUploadingFile(true);
-    // try {
-    //   await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    //   setUploadResult({
-    //     success: true,
-    //     cid: "bafybeihgllfc4...",
-    //   });
-    //   setFile(null);
-    // } catch (error) {
-    //   setUploadResult({
-    //     success: false,
-    //     error: error.message || "Upload failed",
-    //   });
-    // } finally {
-    //   setUploadingFile(false);
-    // }
+  const handleCreateSpace = async () => {
     setUploadingFile(true);
-    try{
-      apicall()
-  }catch(e){
-    console.log(e)
-  }finally{
-    setUploadingFile(false);
-  }
-};
+    try {
+      const response = await axios.post("http://localhost:5000/createstorachaspace", {
+        walletaddress: address
+      });
+      const did = response.data;
+      console.log("Space created:", did);
+      setSpaceId(did.did);
+      
+      setUploadResult({
+        success: true,
+        message: "Space created successfully!",
+        did: did.did
+      });
+    } catch (e) {
+      console.error("Error creating space:", e);
+      setUploadResult({
+        success: false,
+        error: e.message || "Failed to create space"
+      });
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!file) return;
+
+    setUploadingFile(true);
+    setUploadResult(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      if (!spaceId) {
+        await fetchSpaceId();
+      }
+      
+      formData.append("did", spaceId);
+
+      const response = await axios.post("http://localhost:5000/uploadFileFromClient", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      });
+
+      setUploadResult({
+        success: true,
+        cid: response.data.cid,
+      });
+      
+      setFile(null);
+      
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      setUploadResult({
+        success: false,
+        error: error.response?.data?.error || error.message || "Upload failed",
+      });
+    } finally {
+      setUploadingFile(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -104,11 +174,11 @@ console.log(did)
                     wallet-based encryption.
                   </p>
                   <button
-                    onClick={handleFileUpload}
-                    disabled={isProcessing}
+                    onClick={handleCreateSpace}
+                    disabled={isProcessing || uploadingFile}
                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-zinc-600 disabled:cursor-not-allowed text-sm"
                   >
-                    {isProcessing ? "Creating..." : "Create Space"}
+                    {uploadingFile ? "Creating..." : "Create Space"}
                   </button>
                 </div>
 
@@ -167,7 +237,7 @@ console.log(did)
 
                   <button
                     onClick={handleFileUpload}
-                    disabled={!file || uploadingFile}
+                    disabled={!file || uploadingFile || !spaceId}
                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-sm flex items-center justify-center"
                   >
                     {uploadingFile ? (
@@ -213,15 +283,27 @@ console.log(did)
                       {uploadResult.success ? (
                         <>
                           <p className="font-medium">
-                            File uploaded successfully!
+                            {uploadResult.cid ? "File uploaded successfully!" : "Operation successful!"}
                           </p>
-                          <p className="text-sm mt-1">
-                            CID: {uploadResult.cid}
-                          </p>
+                          {uploadResult.cid && (
+                            <p className="text-sm mt-1">
+                              CID: {uploadResult.cid}
+                            </p>
+                          )}
+                          {uploadResult.did && (
+                            <p className="text-sm mt-1">
+                              Space ID: {uploadResult.did}
+                            </p>
+                          )}
+                          {uploadResult.message && (
+                            <p className="text-sm mt-1">
+                              {uploadResult.message}
+                            </p>
+                          )}
                         </>
                       ) : (
                         <>
-                          <p className="font-medium">Upload failed</p>
+                          <p className="font-medium">Operation failed</p>
                           <p className="text-sm mt-1">{uploadResult.error}</p>
                         </>
                       )}

@@ -12,7 +12,8 @@ import {
   MessageSquare,
   Terminal,
   Database,
-  AlertTriangle
+  AlertTriangle,
+  LogOut
 } from "lucide-react";
 import { useSidebar } from "./ui/SidebarContext";
 import { useDisconnect, useAccount } from "wagmi";
@@ -47,7 +48,6 @@ const Navbar = ({
   const { disconnect } = useDisconnect();
   const { address: walletAddress, isConnected: walletIsConnected } = useAccount();
 
-  // Effect to handle wallet address changes
   useEffect(() => {
     if (walletIsConnected && walletAddress) {
       handleWalletChange(walletAddress);
@@ -58,19 +58,16 @@ const Navbar = ({
     }
   }, [walletAddress, walletIsConnected]);
 
-  // Handle wallet address change
   const handleWalletChange = async (address) => {
     setIsLoading(true);
     setSpaceError(null);
     
     try {
-      // Check if this wallet already has a space
       const spaceResponse = await axios.get("http://localhost:5000/getSpaceForWallet", {
         params: { walletAddress: address }
       });
       
       if (spaceResponse.data && spaceResponse.data.did) {
-        // Space exists, set it as current
         await axios.post("http://localhost:5000/setCurrentSpace", {
           did: spaceResponse.data.did
         });
@@ -78,14 +75,11 @@ const Navbar = ({
         setSpaceId(spaceResponse.data.did);
         setSpaceName(formatSpaceName(spaceResponse.data.did, address));
       } else {
-        // Something went wrong with the response
         throw new Error("Invalid response from server");
       }
     } catch (error) {
-      // If error is 404, it means no space exists for this wallet
       if (error.response && error.response.status === 404) {
         try {
-          // Create a new space for this wallet
           const createResponse = await axios.post("http://localhost:5000/createstorachaspace", {
             walletaddress: address
           });
@@ -100,15 +94,13 @@ const Navbar = ({
         } catch (createError) {
           console.error("Error creating space:", createError);
           if (createError.response) {
-            // Log more details about the error response
+
             console.error("Error response:", createError.response.status, createError.response.data);
             setSpaceError(`Failed to create space (${createError.response.status}): ${createError.response.data.error || "Unknown error"}`);
           } else if (createError.request) {
-            // The request was made but no response was received
             console.error("No response received");
             setSpaceError("Failed to create space: No response from server. Is the API running?");
           } else {
-            // Something happened in setting up the request
             setSpaceError(`Failed to create space: ${createError.message}`);
           }
         }
@@ -121,14 +113,11 @@ const Navbar = ({
     }
   };
   
-  // Helper to format space name
   const formatSpaceName = (did, address) => {
-    // Format wallet address
     const shortAddress = address ? 
       `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 
       "Unknown";
       
-    // If DID is available, show part of it
     if (did) {
       const parts = did.split(":");
       if (parts.length >= 3) {
@@ -139,7 +128,6 @@ const Navbar = ({
     return shortAddress;
   };
 
-  // Handle disconnect button click
   const handleDisconnect = () => {
     disconnect?.();
     setSpaceId("");
@@ -322,7 +310,7 @@ const Navbar = ({
                     onClick={handleDisconnect}
                     className="w-full text-left px-4 py-2 text-sm flex items-center text-red-400 hover:bg-zinc-700"
                   >
-                    <Settings size={16} className="mr-2" />
+                    <LogOut size={16} className="mr-2" />
                     Disconnect Wallet
                   </button>
                 )}
@@ -415,7 +403,7 @@ const Navbar = ({
                     onClick={handleDisconnect}
                     className="w-full text-left px-4 py-2 text-sm flex items-center text-red-400 hover:bg-zinc-700"
                   >
-                    <Settings size={16} className="mr-2" />
+                    <LogOut size={16} className="mr-2" />
                     Disconnect Wallet
                   </button>
                 )}

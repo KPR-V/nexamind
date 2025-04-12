@@ -4,11 +4,13 @@ import dotenv from "dotenv";
 import axios from "axios";
 import cors from "cors";
 import fs from "fs";
+import multer from 'multer';
+import path from 'path';
 
-// Add this to store wallet-to-space mappings
+
 let walletSpaceMap = {};
 
-// Load existing mappings from file if available
+
 try {
   if (fs.existsSync('./wallet-space-mappings.json')) {
     walletSpaceMap = JSON.parse(fs.readFileSync('./wallet-space-mappings.json', 'utf8'));
@@ -18,7 +20,7 @@ try {
   console.error("Error loading wallet-space mappings:", error);
 }
 
-// Helper function to save the mappings
+
 function saveWalletSpaceMap() {
   fs.writeFileSync('./wallet-space-mappings.json', JSON.stringify(walletSpaceMap, null, 2));
 }
@@ -27,7 +29,6 @@ const app = express();
 app.use(cors())
 app.use(express.json())
 
-// Update the /createstorachaspace endpoint handler
 
 app.post('/createstorachaspace', async (req, res) => {
     try {
@@ -38,7 +39,6 @@ app.post('/createstorachaspace', async (req, res) => {
             return res.status(400).json({ error: "Wallet address is required" });
         }
         
-        // Check if this wallet already has a space
         if (walletSpaceMap[walletaddress.walletaddress]) {
             return res.json({ 
                 did: walletSpaceMap[walletaddress.walletaddress],
@@ -54,7 +54,6 @@ app.post('/createstorachaspace', async (req, res) => {
             return res.status(500).json({ error: "Failed to create space (null result)" });
         }
         
-        // Store the mapping
         walletSpaceMap[walletaddress.walletaddress] = result;
         saveWalletSpaceMap();
         
@@ -66,7 +65,6 @@ app.post('/createstorachaspace', async (req, res) => {
     }
 });
 
-// New endpoint to get space for a wallet
 app.get('/getSpaceForWallet', async (req, res) => {
     const { walletAddress } = req.query;
     
@@ -74,16 +72,13 @@ app.get('/getSpaceForWallet', async (req, res) => {
         return res.status(400).json({ error: "Wallet address is required" });
     }
     
-    // Return the space DID if it exists
     if (walletSpaceMap[walletAddress]) {
         return res.json({ did: walletSpaceMap[walletAddress] });
     }
     
-    // No space exists for this wallet
     res.status(404).json({ error: "No space found for this wallet address" });
 });
 
-// Also update the createSpace function with better error handling
 async function createSpace(name, email) {
     try {
         console.log(`Creating space for "${name}" with email "${email}"`);
@@ -102,7 +97,7 @@ async function createSpace(name, email) {
         return did;
     } catch (error) {
         console.error("Error in createSpace function:", error);
-        throw error; // Re-throw to be handled by the caller
+        throw error; 
     }
 }
 
@@ -138,13 +133,11 @@ async function getDID() {
     return did
 }
 
-// List all uploads from Storacha
 async function listUploads(did) {
     try {
         const client = await create();
         await client.setCurrentSpace(did);
         
-        // Get all uploads (paginated)
         const uploads = [];
         let cursor = "";
         let hasMore = true;
@@ -156,10 +149,9 @@ async function listUploads(did) {
             });
             
             if (result.results && result.results.length > 0) {
-                // Extract CID strings and create simplified upload objects
                 const processedUploads = result.results.map(upload => {
                     return {
-                        root: upload.root.toString(), // Convert CID to string
+                        root: upload.root.toString(), 
                         uploaded: upload.uploaded,
                         size: upload.size
                     };
@@ -290,6 +282,67 @@ app.get('/getUpload', async (req, res) => {
         res.status(500).json({ error: "Failed to get upload content", details: error.message });
     }
 })
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, './uploads'); 
+    },
+    filename: function (req, file, cb) {
+      cb(null, Date.now() + '-' + file.originalname);
+    }
+  });
+  
+  const upload = multer({ storage: storage });
+  
+  try {
+    if (!fs.existsSync('./uploads')) {
+      fs.mkdirSync('./uploads');
+    }
+  } catch (err) {
+    console.error('Error creating uploads directory:', err);
+  }
+  
+  app.post('/uploadFileFromClient', upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+      
+      const did = req.body.did;
+      if (!did) {
+        return res.status(400).json({ error: 'DID is required' });
+      }
+      
+      console.log(`Uploading file ${req.file.originalname} to space ${did}`);
+      
+      const filePath = req.file.path;
+      const client = await create();
+      
+      await client.setCurrentSpace(did);
+      
+      const fileData = fs.readFileSync(filePath);
+      
+      const fileBlob = new Blob([fileData], { type: req.file.mimetype });
+      
+      const upload = await client.uploadFile(fileBlob);
+      const cidString = upload.toString();
+      
+      console.log(`File uploaded successfully, CID: ${cidString}`);
+      
+      fs.unlinkSync(filePath);
+      
+      res.json({
+        success: true,
+        cid: cidString
+      });
+    } catch (error) {
+      console.error('Error uploading file from client:', error);
+      res.status(500).json({ 
+        error: 'Failed to upload file',
+        details: error.message
+      });
+    }
+  });
 
 app.listen(5000, () => {
     console.log('Server is running on port 5000');

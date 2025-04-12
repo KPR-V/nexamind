@@ -38,7 +38,6 @@ export default function AppSidebar({
   const sidebarWidth = collapsed && !isMobile ? "w-16" : "w-72";
   const showLabels = !collapsed || isMobile;
 
-  // Effect to handle wallet address changes
   useEffect(() => {
     if (isConnected && walletAddress) {
       handleWalletChange(walletAddress);
@@ -49,19 +48,16 @@ export default function AppSidebar({
     }
   }, [walletAddress, isConnected]);
 
-  // Handle wallet address change
   const handleWalletChange = async (address) => {
     setIsLoading(true);
     setSpaceError(null);
     
     try {
-      // First check if this wallet already has a space
       const spaceResponse = await axios.get("http://localhost:5000/getSpaceForWallet", {
         params: { walletAddress: address }
       });
       
       if (spaceResponse.data && spaceResponse.data.did) {
-        // Space exists, set it as current
         await axios.post("http://localhost:5000/setCurrentSpace", {
           did: spaceResponse.data.did
         });
@@ -69,18 +65,14 @@ export default function AppSidebar({
         setSpaceId(spaceResponse.data.did);
         setSpaceName(formatSpaceName(spaceResponse.data.did, address));
         
-        // Now fetch conversations for this space
         await fetchStoredConversations(spaceResponse.data.did);
       } else {
-        // Something went wrong with the response
         throw new Error("Invalid response from server");
       }
     } catch (error) {
-      // If error is 404, it means no space exists for this wallet
       if (error.response && error.response.status === 404) {
         try {
           console.log("Creating new space for wallet:", address);
-          // Create a new space for this wallet
           const createResponse = await axios.post("http://localhost:5000/createstorachaspace", {
             walletaddress: address
           });
@@ -89,7 +81,6 @@ export default function AppSidebar({
             setSpaceId(createResponse.data.did);
             setSpaceName(formatSpaceName(createResponse.data.did, address));
             
-            // No conversations yet for a new space
             setStoredConversations([]);
           } else {
             throw new Error("Failed to create space");
@@ -107,14 +98,11 @@ export default function AppSidebar({
     }
   };
   
-  // Helper to format space name
   const formatSpaceName = (did, address) => {
-    // Format wallet address
     const shortAddress = address ? 
       `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 
       "Unknown";
       
-    // If DID is available, show part of it
     if (did) {
       const parts = did.split(":");
       if (parts.length >= 3) {
@@ -125,7 +113,6 @@ export default function AppSidebar({
     return shortAddress;
   };
 
-  // Fetch stored conversations from Storacha
   const fetchStoredConversations = async (did = spaceId) => {
     setIsLoading(true);
     try {
@@ -135,20 +122,16 @@ export default function AppSidebar({
         setSpaceId(did);
       }
       
-      // Get the list of uploaded files
       const response = await axios.get("http://localhost:5000/listUploads", {
         params: { did }
       });
       
       if (response.data && Array.isArray(response.data.uploads)) {
-        // Process each upload and fetch its content
         const storedChats = await Promise.all(
           response.data.uploads.map(async (upload) => {
             try {
-              // Extract the CID string properly
               const cidString = upload.root.toString();
               
-              // Fetch the content of each upload
               const contentResponse = await axios.get(`http://localhost:5000/getUpload`, {
                 params: { 
                   cid: cidString,
@@ -156,7 +139,6 @@ export default function AppSidebar({
                 }
               });
               
-              // Parse the chat data
               const chatData = contentResponse.data;
               
               return {
@@ -173,7 +155,6 @@ export default function AppSidebar({
           })
         );
         
-        // Filter out failed fetches and set stored conversations
         setStoredConversations(storedChats.filter(chat => chat !== null));
       }
     } catch (error) {
@@ -184,14 +165,12 @@ export default function AppSidebar({
     }
   };
 
-  // Function to reload stored conversations
   const reloadStoredConversations = async () => {
     setIsReloading(true);
     await fetchStoredConversations();
     setIsReloading(false);
   };
 
-  // Helper function to extract title from chat messages
   const getChatTitle = (messages) => {
     if (!messages || !Array.isArray(messages)) return "Saved Chat";
     
@@ -205,7 +184,6 @@ export default function AppSidebar({
     return "Saved Chat";
   };
 
-  // Handle chat upload to Storacha
   const handleChatUpload = async () => {
     try {
       setIsLoading(true);
@@ -230,7 +208,6 @@ export default function AppSidebar({
       
       console.log("Upload successful:", response.data);
       
-      // After successful upload, refresh the stored conversations
       await fetchStoredConversations();
       
     } catch (e) {
@@ -241,7 +218,6 @@ export default function AppSidebar({
     }
   };
 
-  // Combine regular conversations with stored conversations
   const allConversations = [...conversations, ...storedConversations];
 
   return (
@@ -303,7 +279,6 @@ export default function AppSidebar({
               )}
             </div>
 
-            {/* Current Space Information */}
             {showLabels && (
               <div className="px-4 py-3 border-b border-zinc-800">
                 <div className="flex items-center text-zinc-400 text-xs">
@@ -316,7 +291,6 @@ export default function AppSidebar({
               </div>
             )}
 
-            {/* Error message if any */}
             {showLabels && spaceError && (
               <div className="px-4 py-2 bg-red-900/30 border-b border-red-800">
                 <div className="flex items-center text-red-400 text-xs">
