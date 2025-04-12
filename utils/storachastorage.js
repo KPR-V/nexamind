@@ -1,5 +1,8 @@
 "use client";
 import CryptoJS from "crypto-js";
+import axios from 'axios';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 async function createClient(email) {
   const client = await create();
@@ -63,77 +66,136 @@ export async function retrieveData(cid, address, filename = "data.json") {
   }
 }
 
-export async function storeFile(file, address) {
-  try {
-    const cid = await client.put([file]);
-
-    const metadata = {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      lastModified: file.lastModified,
-      uploadedAt: new Date().toISOString(),
-      owner: address,
-    };
-
-    const metadataCid = await storeData(
-      metadata,
-      address,
-      `${file.name}.metadata.json`
-    );
-
-    return {
-      cid,
-      metadataCid: metadataCid.cid,
-      url: `https://${cid}.ipfs.dweb.link/${file.name}`,
-    };
-  } catch (error) {
-    console.error("Error storing file:", error);
-    throw error;
+const StorachaStorage = {
+  async storeConversation(messages, walletAddress) {
+    try {
+      const spaceResponse = await axios.get(`${API_BASE_URL}/getSpaceForWallet`, {
+        params: { walletAddress }
+      });
+      
+      if (!spaceResponse.data || !spaceResponse.data.did) {
+        throw new Error("No space found for this wallet");
+      }
+      
+      const spaceId = spaceResponse.data.did;
+      
+      // Upload the conversation
+      const uploadResponse = await axios.post(`${API_BASE_URL}/uploadFile`, {
+        chatdata: messages,
+        did: spaceId
+      });
+      
+      if (!uploadResponse.data.success) {
+        throw new Error("Upload failed");
+      }
+      
+      const cid = uploadResponse.data.cid;
+      
+      return {
+        success: true,
+        cid,
+        url: `https://${cid}.ipfs.w3s.link`
+      };
+    } catch (error) {
+      console.error("Error in storeConversation:", error);
+      throw error;
+    }
+  },
+  
+  async storeGeneratedImage(imageBlob, prompt, walletAddress) {
+    try {
+      const spaceResponse = await axios.get(`${API_BASE_URL}/getSpaceForWallet`, {
+        params: { walletAddress }
+      });
+      
+      if (!spaceResponse.data || !spaceResponse.data.did) {
+        throw new Error("No space found for this wallet");
+      }
+      
+      const spaceId = spaceResponse.data.did;
+      
+      const formData = new FormData();
+      const filename = `ai-image-${Date.now()}.png`;
+      formData.append('file', new File([imageBlob], filename, { type: 'image/png' }));
+      formData.append('did', spaceId);
+      formData.append('type', 'image');
+      
+      const metadata = {
+        prompt,
+        generated: true,
+        timestamp: Date.now(),
+        description: prompt,
+        isGenerated: true
+      };
+      formData.append('metadata', JSON.stringify(metadata));
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/uploadFileFromClient`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+      
+      if (!response.data.success) {
+        throw new Error("Image upload failed");
+      }
+      
+      return {
+        success: true,
+        cid: response.data.cid,
+        url: `https://${response.data.cid}.ipfs.w3s.link`,
+        metadata: response.data.metadata
+      };
+    } catch (error) {
+      console.error("Error in storeGeneratedImage:", error);
+      throw error;
+    }
+  },
+  
+  async storeFile(file, walletAddress) {
+    try {
+      const spaceResponse = await axios.get(`${API_BASE_URL}/getSpaceForWallet`, {
+        params: { walletAddress }
+      });
+      
+      if (!spaceResponse.data || !spaceResponse.data.did) {
+        throw new Error("No space found for this wallet");
+      }
+      
+      const spaceId = spaceResponse.data.did;
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('did', spaceId);
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/uploadFileFromClient`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+      
+      if (!response.data.success) {
+        throw new Error("File upload failed");
+      }
+      
+      return {
+        success: true,
+        cid: response.data.cid,
+        url: `https://${response.data.cid}.ipfs.w3s.link`,
+        metadata: response.data.metadata
+      };
+    } catch (error) {
+      console.error("Error in storeFile:", error);
+      throw error;
+    }
   }
-}
+};
 
-export async function storeConversation(messages, address) {
-  try {
-    const timestamp = new Date().toISOString();
-    const filename = `conversation-${timestamp}.json`;
-
-    return await storeData(messages, address, filename);
-  } catch (error) {
-    console.error("Error storing conversation:", error);
-    throw error;
-  }
-}
-
-export async function storeGeneratedImage(imageBlob, prompt, address) {
-  try {
-    const timestamp = new Date().toISOString();
-    const filename = `generated-image-${timestamp}.png`;
-
-    const file = new File([imageBlob], filename, { type: "image/png" });
-
-    const result = await storeFile(file, address);
-
-    const metadata = {
-      prompt,
-      generatedAt: timestamp,
-      owner: address,
-      imageCid: result.cid,
-    };
-
-    const metadataResult = await storeData(
-      metadata,
-      address,
-      `${filename}.metadata.json`
-    );
-
-    return {
-      ...result,
-      metadataCid: metadataResult.cid,
-      metadata,
-    };
-  } catch (error) {
-    console.error("Error storing generated image:", error);
-    throw error;
-  }
-}
+export default StorachaStorage;

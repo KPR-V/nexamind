@@ -7,10 +7,8 @@ import fs from "fs";
 import multer from 'multer';
 import path from 'path';
 
-// Load environment variables
 dotenv.config();
 
-// Set up proper CORS configuration
 const corsOptions = {
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   optionsSuccessStatus: 200
@@ -359,14 +357,33 @@ const storage = multer.diskStorage({
       
       await client.setCurrentSpace(did);
       
+      let additionalMetadata = {};
+      if (req.body.metadata) {
+        try {
+          additionalMetadata = JSON.parse(req.body.metadata);
+        } catch (e) {
+          console.warn("Could not parse metadata JSON:", e);
+        }
+      }
+      
+      const isImage = req.file.mimetype.startsWith('image/');
+      const fileType = req.body.type || (isImage ? 'image' : 'file');
+      
       const metadata = {
         name: req.file.originalname,
-        type: req.body.type || 'file', 
+        type: fileType,
         size: req.file.size,
         mimetype: req.file.mimetype,
         uploadedAt: new Date().toISOString(),
-        isStoredChat: false 
+        ...additionalMetadata,
+        isStoredChat: false
       };
+      
+      if (fileType === 'image' && additionalMetadata.prompt) {
+        metadata.prompt = additionalMetadata.prompt;
+        metadata.description = additionalMetadata.prompt;
+        metadata.isGenerated = true;
+      }
       
       const metadataPath = `${filePath}.metadata.json`;
       fs.writeFileSync(metadataPath, JSON.stringify(metadata));
@@ -386,18 +403,31 @@ const storage = multer.diskStorage({
       try {
         const dirUpload = await client.uploadDirectory([fileObj, metaFile]);
         console.log(`Directory uploaded with CID: ${dirUpload.toString()}`);
+        
+        const resultCid = fileType === 'image' && metadata.isGenerated ? 
+          dirUpload.toString() : cidString;
+        
+        fs.unlinkSync(filePath);
+        fs.unlinkSync(metadataPath);
+        
+        res.json({
+          success: true,
+          cid: resultCid,
+          metadata: metadata
+        });
       } catch (dirError) {
         console.error("Error uploading directory:", dirError);
+        
+        fs.unlinkSync(filePath);
+        fs.unlinkSync(metadataPath);
+        
+        res.json({
+          success: true,
+          cid: cidString,
+          metadata: metadata,
+          warning: "Directory upload failed, but file was uploaded successfully."
+        });
       }
-      
-      fs.unlinkSync(filePath);
-      fs.unlinkSync(metadataPath);
-      
-      res.json({
-        success: true,
-        cid: cidString,
-        metadata: metadata
-      });
     } catch (error) {
       console.error('Error uploading file from client:', error);
       res.status(500).json({ 
@@ -407,7 +437,6 @@ const storage = multer.diskStorage({
     }
   });
 
-// Update the port to use environment variable
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

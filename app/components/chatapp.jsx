@@ -1,4 +1,3 @@
-// components/chatapp.jsx
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
@@ -53,7 +52,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
   const [selectedImageModel, setSelectedImageModel] = useState("");
   const [showModelDialog, setShowModelDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode only
+  const [isDarkMode, setIsDarkMode] = useState(true); 
   const [error, setError] = useState(null);
   const [isImageMode, setIsImageMode] = useState(false);
   const [enableTools, setEnableTools] = useState(true);
@@ -66,6 +65,8 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
     useUserData();
   const { collapsed, isMobile } = useSidebar();
   const [enableWebSearchForNonToolModels, setEnableWebSearchForNonToolModels] = useState(false);
+  const [latestGeneratedImage, setLatestGeneratedImage] = useState(null);
+  const [latestImagePrompt, setLatestImagePrompt] = useState("");
  
   useEffect(() => {
     try {
@@ -174,7 +175,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         setSelectedModel(data[0]);
       }
     } catch (error) {
-      console.error("❌ Error fetching models:", error);
+      console.error("Error fetching models:", error);
       setError("Failed to load chat models. Please try again later.");
     }
   };
@@ -188,7 +189,7 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         setSelectedImageModel(data[0]);
       }
     } catch (error) {
-      console.error("❌ Error fetching image models:", error);
+      console.error("Error fetching image models:", error);
   
     }
   };
@@ -367,12 +368,16 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
 
     try {
       setIsProcessing(true);
+      
+      setLatestGeneratedImage(null);
+      setLatestImagePrompt("");
 
-      const tempId = `bot-img-${Date.now()}`;
+      const tempMsgId = `bot-img-${Date.now()}`;
+      
       setMessages((prev) => [
         ...prev,
         {
-          id: tempId,
+          id: tempMsgId,
           text: "Generating image...",
           sender: "bot",
           isTyping: true,
@@ -380,27 +385,24 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         },
       ]);
 
-
       const response = await axios.post(
         "/api/image/generate",
         {
           model: selectedImageModel,
           prompt: prompt,
         },
-        {
+        { 
           responseType: "arraybuffer",
-        }
+          timeout: 300000, 
       );
 
-   
       const base64Image = `data:image/png;base64,${Buffer.from(
         response.data
       ).toString("base64")}`;
-
-    
+      
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === tempId
+          msg.id === tempMsgId
             ? {
                 ...msg,
                 text: `Here's the generated image for: "${prompt}"`,
@@ -410,172 +412,48 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
             : msg
         )
       );
-
-      if (isConnected && address) {
-    
-        const fetchResponse = await fetch(base64Image);
-        const imageBlob = await fetchResponse.blob();
-
-     
-        saveGeneratedImage(imageBlob, prompt)
-          .then((result) => {
-            console.log("Image saved to Storacha:", result.cid);
-          })
-          .catch((err) => {
-            console.error("Failed to save image to Storacha:", err);
-          });
-      }
+      
+      setLatestGeneratedImage(base64Image);
+      setLatestImagePrompt(prompt);
+      
     } catch (error) {
       console.error("❌ Error generating image:", error);
-
-   
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === tempId
-            ? {
-                ...msg,
-                text: `Failed to generate image: ${
-                  error.response?.data?.error ||
-                  error.message ||
-                  "Unknown error"
-                }`,
-                isTyping: false,
-                isError: true,
-              }
-            : msg
-        )
-      );
+      
+      setLatestGeneratedImage(null);
+      setLatestImagePrompt("");
+      
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleTextResponse = async (currentMessage, imageData = null) => {
-    if (!selectedModel) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `bot-err-${Date.now()}`,
-          text: "Please select a model first.",
-          sender: "bot",
-          isError: true,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+  const handleSaveImage = async () => {
+    if (!latestGeneratedImage || !latestImagePrompt) {
+      setError("No image to save");
       return;
     }
 
-    if (isProcessing) return;
-    setIsProcessing(true);
-    setError(null);
-
-   
-    const typingMessageId = `bot-${Date.now()}`;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: typingMessageId,
-        text: "",
-        sender: "bot",
-        isTyping: true,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-
     try {
-    
-      const modelSupportsTools = toolSupportedModels.includes(selectedModel);
-      const useTools = modelSupportsTools && enableTools;
-      const requestConfig = {
-        retry: true,
-        maxRetries: 3,
-        retryDelay: 3000,
-      };
-   
-      const response = await apiClient.post(
-        "/api/chatlilypad",
+      setIsProcessing(true);
+      
+      const fetchResponse = await fetch(latestGeneratedImage);
+      const blob = await fetchResponse.blob();
+      
+      const result = await saveGeneratedImage(blob, latestImagePrompt);
+      
+      setMessages((prev) => [
+        ...prev,
         {
-          model: selectedModel,
-          message: currentMessage,
-          conversation: conversationRef.current,
-          imageData: imageData, 
-          enableTools: useTools, 
-          enableWebSearchForNonToolModels: enableWebSearchForNonToolModels, 
+          id: `system-${Date.now()}`,
+          text: `Image successfully saved to your Storacha space.`,
+          sender: "system",
+          timestamp: new Date().toISOString(),
         },
-        requestConfig
-      );
-
-     
-      if (response.data.content) {
-        const { content, toolsUsed } = response.data;
-
-  
-        const newMessageId = `bot-${Date.now()}`;
-        if (toolsUsed && toolsUsed.length > 0) {
-          setMessageTools((prev) => ({
-            ...prev,
-            [newMessageId]: toolsUsed,
-          }));
-        }
-
+      ]);
       
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === typingMessageId
-              ? {
-                  id: newMessageId,
-                  text: content,
-                  sender: "bot",
-                  isTyping: false,
-                  isFinal: true,
-                  timestamp: new Date().toISOString(),
-                }
-              : msg
-          )
-        );
-      } else {
-      
-        const fullText = response.data;
-
-       
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === typingMessageId
-              ? {
-                  ...msg,
-                  text: fullText,
-                  isTyping: false,
-                  isFinal: true,
-                  timestamp: new Date().toISOString(),
-                }
-              : msg
-          )
-        );
-      }
     } catch (error) {
-      console.error("❌ Error getting response:", error);
-
-  
-      setMessages((prev) => {
-        const errorMessage =
-          error.response?.data?.error ||
-          error.message ||
-          "Something went wrong.";
-
-        return prev.map((msg) =>
-          msg.id === typingMessageId
-            ? {
-                ...msg,
-                text: `Error: ${errorMessage}`,
-                isTyping: false,
-                isError: true,
-                timestamp: new Date().toISOString(),
-              }
-            : msg
-        );
-      });
-
-      setError("Failed to get response. Please try again.");
+      console.error("Error saving image:", error);
+      setError(`Failed to save image: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -588,6 +466,10 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
 
   const isModelToolCapable = (model) => {
     return toolSupportedModels.includes(model);
+  };
+
+  const hasGeneratedImage = () => {
+    return latestGeneratedImage !== null;
   };
 
   return (
@@ -612,6 +494,8 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
         collapsed={collapsed}
         enableWebSearchForNonToolModels={enableWebSearchForNonToolModels}
         toggleWebSearchForNonToolModels={toggleWebSearchForNonToolModels}
+        handleSaveImage={handleSaveImage}
+        hasGeneratedImage={hasGeneratedImage()}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden items-center bg-zinc-900">

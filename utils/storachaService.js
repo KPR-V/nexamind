@@ -3,7 +3,6 @@ import axios from 'axios';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export const storachaService = {
-  // Space management
   createSpace: async (walletAddress) => {
     const response = await axios.post(`${API_BASE_URL}/createstorachaspace`, { walletAddress });
     return response.data;
@@ -21,7 +20,6 @@ export const storachaService = {
     return response.data;
   },
   
-  // Content retrieval
   listUploads: async (did) => {
     const response = await axios.get(`${API_BASE_URL}/listUploads`, { 
       params: { did } 
@@ -36,7 +34,6 @@ export const storachaService = {
     return response.data;
   },
   
-  // Upload functions
   uploadChatData: async (chatdata, did) => {
     const response = await axios.post(`${API_BASE_URL}/uploadFile`, { 
       chatdata, 

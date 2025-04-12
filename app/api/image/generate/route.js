@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export async function POST(request) {
-  // console.time("Total response time");
   try {
     const { model, prompt } = await request.json();
 
@@ -41,7 +40,6 @@ export async function POST(request) {
       }
     );
 
-    // console.timeEnd("Total response time");
     return new Response(response.data, {
       headers: {
         "Content-Type": "image/png",

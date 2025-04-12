@@ -13,7 +13,8 @@ import {
   Terminal,
   Database,
   AlertTriangle,
-  LogOut
+  LogOut,
+  Save
 } from "lucide-react";
 import { useSidebar } from "./ui/SidebarContext";
 import { useDisconnect, useAccount } from "wagmi";
@@ -35,6 +36,9 @@ const Navbar = ({
   collapsed,
   enableWebSearchForNonToolModels,
   toggleWebSearchForNonToolModels,
+  currentImage, 
+  handleSaveImage,
+  hasGeneratedImage, 
 }) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
@@ -177,6 +181,16 @@ const Navbar = ({
       </div>
 
       <div className="flex items-center space-x-2">
+        {isImageMode && hasGeneratedImage && walletIsConnected && (
+          <button
+            onClick={handleSaveImage}
+            className="flex items-center px-2 py-1.5 rounded-md bg-purple-900/30 text-purple-400 hover:bg-purple-900/50 transition-colors"
+            title="Save generated image to your Storacha space"
+          >
+            <Save size={16} className="mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Save Image</span>
+          </button>
+        )}
         {!isImageMode && isModelToolCapable(selectedModel) && (
           <button
             onClick={toggleTools}

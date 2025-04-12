@@ -1,6 +1,5 @@
 "use client";
 
-// Import and use the polyfill before any other imports
 
 import dynamic from "next/dynamic";
 const StorachaStorage = dynamic(() => import("../utils/storachastorage"), {
@@ -8,6 +7,7 @@ const StorachaStorage = dynamic(() => import("../utils/storachastorage"), {
 });
 import { createContext, useContext, useState, useEffect } from "react";
 import { useAccount } from "wagmi";
+import axios from 'axios'; 
 const UserDataContext = createContext();
 
 export function UserDataProvider({ children }) {
@@ -17,7 +17,6 @@ export function UserDataProvider({ children }) {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Save a conversation to Storacha
   const saveConversation = async (messages) => {
     if (!isConnected || !address) return null;
 
@@ -25,7 +24,6 @@ export function UserDataProvider({ children }) {
     try {
       const result = await StorachaStorage.storeConversation(messages, address);
 
-      // Update local state
       setConversations((prev) => [
         ...prev,
         {
@@ -45,30 +43,63 @@ export function UserDataProvider({ children }) {
     }
   };
 
-  // Save a generated image to Storacha
   const saveGeneratedImage = async (imageBlob, prompt) => {
-    if (!isConnected || !address) return null;
+    if (!isConnected || !address) {
+      throw new Error("Wallet not connected");
+    }
 
     setIsLoading(true);
     try {
-      const result = await StorachaStorage.storeGeneratedImage(
-        imageBlob,
-        prompt,
-        address
+      const spaceResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/getSpaceForWallet`, {
+        params: { walletAddress: address }
+      });
+      
+      if (!spaceResponse.data || !spaceResponse.data.did) {
+        throw new Error("Could not find storage space for your wallet");
+      }
+      
+      const spaceId = spaceResponse.data.did;
+      
+      const formData = new FormData();
+      
+      const filename = `ai-image-${Date.now()}.png`;
+      formData.append('file', new File([imageBlob], filename, { type: 'image/png' }));
+      formData.append('did', spaceId);
+      formData.append('type', 'image');
+      
+      const metadata = {
+        prompt: prompt,
+        generated: true,
+        timestamp: Date.now(),
+        description: prompt
+      };
+      formData.append('metadata', JSON.stringify(metadata));
+
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/uploadFileFromClient`, 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
       );
 
-      // Update local state
+      if (!response.data.success) {
+        throw new Error("Upload failed");
+      }
+
       setGeneratedImages((prev) => [
         ...prev,
         {
-          id: result.cid,
-          prompt,
+          id: response.data.cid,
+          prompt: prompt,
           timestamp: new Date().toISOString(),
-          url: result.url,
+          url: `https://${response.data.cid}.ipfs.w3s.link`,
         },
       ]);
 
-      return result;
+      return response.data;
     } catch (error) {
       console.error("Error saving generated image:", error);
       throw error;
@@ -77,7 +108,6 @@ export function UserDataProvider({ children }) {
     }
   };
 
-  // Upload a file to Storacha
   const uploadFile = async (file) => {
     if (!isConnected || !address) return null;
 
@@ -85,7 +115,6 @@ export function UserDataProvider({ children }) {
     try {
       const result = await StorachaStorage.storeFile(file, address);
 
-      // Update local state
       setUploadedFiles((prev) => [
         ...prev,
         {
@@ -107,7 +136,6 @@ export function UserDataProvider({ children }) {
     }
   };
 
-  // Reset state when wallet disconnects
   useEffect(() => {
     if (!isConnected) {
       setConversations([]);
