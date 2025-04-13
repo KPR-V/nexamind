@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import AppSidebar from "./components/appsidebar";
 import { SidebarProvider } from "./components/ui/SidebarContext";
+import localFont from 'next/font/local'
+const myFont = localFont({ src: '../fonts/Nunito-VariableFont_wght.ttf' })
 
 const ChatApp = dynamic(() => import("./components/chatapp"), {
   ssr: false,
@@ -46,6 +48,7 @@ export default function Page() {
 
   return (
     <SidebarProvider defaultCollapsed={false}>
+      <div className={myFont.className}>
       <main className="bg-zinc-900 h-screen overflow-hidden">
         <AppSidebar
           conversations={conversations}
@@ -65,6 +68,7 @@ export default function Page() {
           />
         </div>
       </main>
+      </div>
     </SidebarProvider>
   );
 }

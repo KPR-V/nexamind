@@ -5,6 +5,8 @@ import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import axios from "axios";
 import  FileUploadForm  from "../components/FileUploadForm";
+import localFont from 'next/font/local'
+const myFont = localFont({ src: '../../fonts/Nunito-VariableFont_wght.ttf' })
 
 export default function DashboardPage() {
   const { isConnected, address: walletAddress } = useAccount();
@@ -180,6 +182,7 @@ export default function DashboardPage() {
   }
 
   return (
+    <div className={myFont.className}>
     <div className="container mx-auto p-4 bg-zinc-50 dark:bg-zinc-900 min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <a
@@ -351,9 +354,19 @@ export default function DashboardPage() {
                     <p className="mt-2 text-sm text-zinc-800 dark:text-zinc-200 line-clamp-2">
                       {img.prompt}
                     </p>
-                    <p className="text-xs text-zinc-500 mt-2">
-                      {new Date(img.timestamp).toLocaleString()}
-                    </p>
+                    <div className="mt-3 flex justify-between items-center">
+                      <p className="text-xs text-zinc-500">
+                        {new Date(img.timestamp).toLocaleString()}
+                      </p>
+                      <a
+                        href={img.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        View
+                      </a>
+                    </div>
                   </div>
                 ))
               )}
@@ -442,6 +455,7 @@ export default function DashboardPage() {
           )}
         </>
       )}
+    </div>
     </div>
   );
 }
