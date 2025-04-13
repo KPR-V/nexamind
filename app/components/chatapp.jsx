@@ -460,6 +460,137 @@ const ChatApp = ({ initialConversation, onConversationSaved }) => {
     }
   };
 
+  const handleTextResponse = async (currentMessage, imageData = null) => {
+    if (!selectedModel) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `bot-err-${Date.now()}`,
+          text: "Please select a model first.",
+          sender: "bot",
+          isError: true,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+      return;
+    }
+
+    if (isProcessing) return;
+    setIsProcessing(true);
+    setError(null);
+
+
+    const typingMessageId = `bot-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: typingMessageId,
+        text: "",
+        sender: "bot",
+        isTyping: true,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+
+    try {
+
+      const modelSupportsTools = toolSupportedModels.includes(selectedModel);
+      const useTools = modelSupportsTools && enableTools;
+      const requestConfig = {
+        retry: true,
+        maxRetries: 3,
+        retryDelay: 3000,
+      };
+
+      const response = await apiClient.post(
+        "/api/chatlilypad",
+        {
+          model: selectedModel,
+          message: currentMessage,
+          conversation: conversationRef.current,
+          imageData: imageData, 
+          enableTools: useTools, 
+          enableWebSearchForNonToolModels: enableWebSearchForNonToolModels, 
+        },
+        requestConfig
+      );
+
+
+      if (response.data.content) {
+        const { content, toolsUsed } = response.data;
+
+
+        const newMessageId = `bot-${Date.now()}`;
+        if (toolsUsed && toolsUsed.length > 0) {
+          setMessageTools((prev) => ({
+            ...prev,
+            [newMessageId]: toolsUsed,
+          }));
+        }
+
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === typingMessageId
+              ? {
+                  id: newMessageId,
+                  text: content,
+                  sender: "bot",
+                  isTyping: false,
+                  isFinal: true,
+                  timestamp: new Date().toISOString(),
+                }
+              : msg
+          )
+        );
+      } else {
+
+        const fullText = response.data;
+
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === typingMessageId
+              ? {
+                  ...msg,
+                  text: fullText,
+                  isTyping: false,
+                  isFinal: true,
+                  timestamp: new Date().toISOString(),
+                }
+              : msg
+          )
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error getting response:", error);
+
+
+      setMessages((prev) => {
+        const errorMessage =
+          error.response?.data?.error ||
+          error.message ||
+          "Something went wrong.";
+
+        return prev.map((msg) =>
+          msg.id === typingMessageId
+            ? {
+                ...msg,
+                text: `Error: ${errorMessage}`,
+                isTyping: false,
+                isError: true,
+                timestamp: new Date().toISOString(),
+              }
+            : msg
+        );
+      });
+
+      setError("Failed to get response. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const getLastMessage = () => {
     if (messages.length === 0) return null;
     return messages[messages.length - 1];

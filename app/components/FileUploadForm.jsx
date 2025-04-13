@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import storachaService from '../../utils/storachaService';
+import axios from 'axios';
 
 export default function FileUploadForm({ spaceId, onUploadSuccess }) {
   const [file, setFile] = useState(null);
@@ -39,15 +39,35 @@ export default function FileUploadForm({ spaceId, onUploadSuccess }) {
         formData.append('type', 'file');
       }
       
-      const response = await storachaService.uploadFile(formData);
+      // Add additional metadata
+      const metadata = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+      };
+      formData.append('metadata', JSON.stringify(metadata));
       
-      if (response.success) {
+      console.log('Uploading file:', file.name);
+      console.log('To space ID:', spaceId);
+      
+      const response = await axios.post(
+        'http://localhost:5000/uploadFileFromClient', 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+      
+      if (response.data && response.data.success) {
         setFile(null);
         if (onUploadSuccess) {
           onUploadSuccess();
         }
       } else {
-        setError('Upload failed');
+        setError('Upload failed: ' + (response.data?.error || 'Unknown error'));
       }
     } catch (err) {
       console.error('Error uploading file:', err);
@@ -86,13 +106,27 @@ export default function FileUploadForm({ spaceId, onUploadSuccess }) {
           </div>
         )}
         
+        {file && (
+          <div className="text-sm text-zinc-600 dark:text-zinc-400">
+            Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)
+          </div>
+        )}
+        
         <button
           type="submit"
           disabled={isUploading || !file}
           className="py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 
                    disabled:bg-blue-400 disabled:cursor-not-allowed"
         >
-          {isUploading ? 'Uploading...' : 'Upload'}
+          {isUploading ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Uploading...
+            </span>
+          ) : 'Upload'}
         </button>
       </form>
     </div>

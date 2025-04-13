@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import storachaService from "../../utils/storachaService";
-import FileUploadForm from '../components/FileUploadForm';
+import axios from "axios";
+import  FileUploadForm  from "../components/FileUploadForm";
 
-function DashboardPage() {
+export default function DashboardPage() {
   const { isConnected, address: walletAddress } = useAccount();
   const [activeTab, setActiveTab] = useState("conversations");
   const [spaceId, setSpaceId] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -26,11 +26,14 @@ function DashboardPage() {
   const fetchSpaceId = async () => {
     setIsLoading(true);
     try {
-      const response = await storachaService.getSpaceForWallet(walletAddress);
-      if (response && response.did) {
-        setSpaceId(response.did);
-        fetchStoredData(response.did);
-      }
+      const response = await axios.get("http://localhost:5000/getSpaceForWallet", {
+        params: { walletAddress }
+      });
+      
+      if (response.data && response.data.did) {
+        setSpaceId(response.data.did);
+        fetchStoredData(response.data.did);}
+      
     } catch (error) {
       console.error("Error fetching space ID:", error);
       setError("Failed to fetch your space. Please try again.");
@@ -52,23 +55,24 @@ function DashboardPage() {
   const fetchStoredData = async (did) => {
     setIsLoading(true);
     try {
-      const response = await storachaService.listUploads(did);
-      if (response && Array.isArray(response.uploads)) {
-        const chats = [];
+      const response = await axios.get("http://localhost:5000/listUploads", {
+        params: { did }
+      });
+      
+      if (response.data && Array.isArray(response.data.uploads)) {        const chats = [];
         const files = [];
         const images = [];
 
         await Promise.all(
-          response.uploads.map(async (upload) => {
+          response.data.uploads.map(async (upload) => {
             try {
               const cidString = upload.root.toString();
               let contentResponse;
 
               try {
-                contentResponse = await storachaService.getUpload(
-                  cidString,
-                  did
-                );
+                contentResponse = await axios.get(`http://localhost:5000/getUpload`, {
+                  params: { cid: cidString, did }
+                });
               } catch (fetchError) {
                 console.warn(
                   `Could not get details for upload ${cidString}, using basic info`
@@ -80,23 +84,17 @@ function DashboardPage() {
                   timestamp: upload.uploaded || Date.now(),
                   url: `https://${cidString}.ipfs.w3s.link`,
                   type: "file",
-                  error: true,
                 });
                 return;
               }
 
-              const data = contentResponse;
-
-              if (
-                data.type === "chat" ||
-                (data.messages && Array.isArray(data.messages)) ||
-                (Array.isArray(data) &&
-                  data.length > 0 &&
-                  data[0].sender)
-              ) {
-                const messages = Array.isArray(data)
-                  ? data
-                  : data.messages || [];
+              const data = contentResponse.data;
+               
+              if (data.type === "chat" || 
+                  (data.messages && Array.isArray(data.messages)) || 
+                  (Array.isArray(data) && data.length > 0 && data[0].sender)) {
+                const messages = Array.isArray(data) ? data : (data.messages || []);
+           
                 chats.push({
                   id: cidString,
                   messages: messages,
@@ -104,11 +102,9 @@ function DashboardPage() {
                   url: `https://${cidString}.ipfs.w3s.link`,
                   title: getChatTitle(messages),
                 });
-              } else if (
-                data.type === "image" ||
+              } else if (data.type === "image" || 
                 (data.mimetype && data.mimetype.startsWith("image/")) ||
-                (data.url && (data.prompt || data.description))
-              ) {
+                (data.url && (data.prompt || data.description))) {
                 images.push({
                   id: cidString,
                   url: data.url || `https://${cidString}.ipfs.w3s.link`,
@@ -458,4 +454,4 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
-export default DashboardPage;
+

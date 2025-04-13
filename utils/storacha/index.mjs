@@ -7,16 +7,7 @@ import fs from "fs";
 import multer from 'multer';
 import path from 'path';
 
-dotenv.config();
 
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  optionsSuccessStatus: 200
-};
-
-const app = express();
-app.use(cors(corsOptions));
-app.use(express.json({ limit: '50mb' }));
 
 let walletSpaceMap = {};
 
@@ -34,6 +25,10 @@ try {
 function saveWalletSpaceMap() {
   fs.writeFileSync('./wallet-space-mappings.json', JSON.stringify(walletSpaceMap, null, 2));
 }
+
+const app = express();
+ app.use(cors())
+ app.use(express.json())
 
 app.post('/createstorachaspace', async (req, res) => {
     try {
@@ -241,6 +236,7 @@ async function getUpload(cidString, did) {
     }
 }
 
+
 app.post('/uploadFile', async (req, res) => {
     try {
         const chatdata = req.body.chatdata;
@@ -344,90 +340,59 @@ const storage = multer.diskStorage({
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
       }
-      
+
       const did = req.body.did;
       if (!did) {
         return res.status(400).json({ error: 'DID is required' });
       }
-      
+
       console.log(`Uploading file ${req.file.originalname} to space ${did}`);
-      
+
       const filePath = req.file.path;
       const client = await create();
-      
+
       await client.setCurrentSpace(did);
-      
-      let additionalMetadata = {};
-      if (req.body.metadata) {
-        try {
-          additionalMetadata = JSON.parse(req.body.metadata);
-        } catch (e) {
-          console.warn("Could not parse metadata JSON:", e);
-        }
-      }
-      
-      const isImage = req.file.mimetype.startsWith('image/');
-      const fileType = req.body.type || (isImage ? 'image' : 'file');
-      
+
       const metadata = {
         name: req.file.originalname,
-        type: fileType,
+        type: req.body.type || 'file', 
         size: req.file.size,
         mimetype: req.file.mimetype,
         uploadedAt: new Date().toISOString(),
-        ...additionalMetadata,
-        isStoredChat: false
+        isStoredChat: false 
       };
-      
-      if (fileType === 'image' && additionalMetadata.prompt) {
-        metadata.prompt = additionalMetadata.prompt;
-        metadata.description = additionalMetadata.prompt;
-        metadata.isGenerated = true;
-      }
       
       const metadataPath = `${filePath}.metadata.json`;
       fs.writeFileSync(metadataPath, JSON.stringify(metadata));
       
       const fileData = fs.readFileSync(filePath);
       const metadataData = fs.readFileSync(metadataPath);
-      
+
       const fileBlob = new Blob([fileData], { type: req.file.mimetype });
+      
       const upload = await client.uploadFile(fileBlob);
       const cidString = upload.toString();
-      
+
       console.log(`File uploaded successfully, CID: ${cidString}`);
-      
+
       const fileObj = new File([fileData], req.file.originalname, { type: req.file.mimetype });
       const metaFile = new File([metadataData], 'metadata.json', { type: 'application/json' });
       
       try {
         const dirUpload = await client.uploadDirectory([fileObj, metaFile]);
         console.log(`Directory uploaded with CID: ${dirUpload.toString()}`);
-        
-        const resultCid = fileType === 'image' && metadata.isGenerated ? 
-          dirUpload.toString() : cidString;
-        
-        fs.unlinkSync(filePath);
-        fs.unlinkSync(metadataPath);
-        
-        res.json({
-          success: true,
-          cid: resultCid,
-          metadata: metadata
-        });
       } catch (dirError) {
         console.error("Error uploading directory:", dirError);
-        
-        fs.unlinkSync(filePath);
-        fs.unlinkSync(metadataPath);
-        
-        res.json({
-          success: true,
-          cid: cidString,
-          metadata: metadata,
-          warning: "Directory upload failed, but file was uploaded successfully."
-        });
       }
+      
+      fs.unlinkSync(filePath);
+      fs.unlinkSync(metadataPath);
+
+      res.json({
+        success: true,
+        cid: cidString,
+        metadata: metadata
+      });
     } catch (error) {
       console.error('Error uploading file from client:', error);
       res.status(500).json({ 
@@ -437,7 +402,6 @@ const storage = multer.diskStorage({
     }
   });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-})
+  app.listen(5000, () => {
+    console.log('Server is running on port 5000');
+  })
