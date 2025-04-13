@@ -144,7 +144,6 @@ export default function AppSidebar({
               if (data.type !== "chat" && 
                   !(Array.isArray(data) && data.length > 0 && data[0].sender) && 
                   !(data.messages && Array.isArray(data.messages))) {
-                // Skip non-chat uploads
                 return null;
               }
               
@@ -455,6 +454,18 @@ export default function AppSidebar({
             </div>
 
             <div className="border-t border-zinc-800 p-4">
+              <Link
+                href="/agents"
+                className={`flex items-center text-zinc-300 hover:text-white p-2 w-full rounded-md hover:bg-zinc-800 transition-colors ${
+                  collapsed && !isMobile ? "justify-center" : ""
+                }`}
+                onClick={() => {
+                  if (isMobile) setMobileOpen(false);
+                }}
+              >
+                <ExternalLink size={18} className={showLabels ? "mr-2" : ""} />
+                {showLabels && "Agent Arena"}
+              </Link>
               <Link
                 href="/dashboard"
                 className={`flex items-center text-zinc-300 hover:text-white p-2 w-full rounded-md hover:bg-zinc-800 transition-colors ${

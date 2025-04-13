@@ -1,5 +1,7 @@
+import withLlamaIndex from "llamaindex/next";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ["llamaindex"],
   images: {
     remotePatterns: [
       {
@@ -18,4 +20,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withLlamaIndex(nextConfig);
